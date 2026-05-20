@@ -1,0 +1,57 @@
+# ─── Python ──────────────────────────────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Models (trained files can be large; store in Git LFS or externally) ─────
+models/*.tflite
+models/*.onnx
+models/*.pt
+models/*.h5
+
+# ─── Node / Dashboard ────────────────────────────────────────────────────────
+node_modules/
+dashboard/dist/
+dashboard/.next/
+*.tsbuildinfo
+
+# ─── Generated docs ──────────────────────────────────────────────────────────
+*.docx
+
+# ─── Logs & runtime data ─────────────────────────────────────────────────────
+*.log
+logs/
+detections/
+captures/
+
+# ─── Secrets & environment ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# ─── macOS ───────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Docker ──────────────────────────────────────────────────────────────────
+.docker/

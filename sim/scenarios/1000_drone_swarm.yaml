@@ -1,0 +1,25 @@
+name: 1000_drone_swarm
+description: |
+  Stress-test scenario: 1000-drone coordinated saturation swarm.
+  Used for load testing the fusion engine and dashboard rendering.
+  WARNING: This will consume significant CPU. Run on the hub machine, not a node.
+
+swarm:
+  formation: random
+  center:
+    lat: 17.4200
+    lon: 78.4867
+    alt_m: 150
+  spread_m: 2000
+  speed_mps: 15
+  count: 1000
+
+# Individual drone definitions are generated procedurally by drone_swarm.py
+# based on the swarm config above. No need to list all 1000 drones manually.
+procedural_generation:
+  models:
+    - { name: DJI_Mini3,   weight: 0.40, rf_freq: 2437000000 }
+    - { name: DJI_Mavic3,  weight: 0.30, rf_freq: 2437000000 }
+    - { name: Autel_Evo2,  weight: 0.15, rf_freq: 5780000000 }
+    - { name: FPV_Generic, weight: 0.15, rf_freq: 915000000  }
+  power_db_range: [-55, -40]

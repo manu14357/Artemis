@@ -1,0 +1,13 @@
+{
+  "name": "artemis",
+  "version": "1.0.0",
+  "description": "ARTEMIS v1 — open-source multi-sensor counter-drone platform",
+  "scripts": {
+    "dashboard": "cd dashboard && npm run dev",
+    "dashboard:build": "cd dashboard && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

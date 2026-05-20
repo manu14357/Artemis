@@ -1,0 +1,62 @@
+hub:
+  id: 'hub-01'
+  host: '0.0.0.0'
+  api_port: 8080
+
+mqtt:
+  # The hub runs its own Mosquitto broker (or connects to one).
+  # By default the hub binds Mosquitto on the same machine.
+  broker: 127.0.0.1
+  port: 1883
+  keepalive: 60
+  # Subscribe to all node sensor streams:
+  node_topic_prefix: 'artemis/nodes'
+  # Publish confirmed threats to:
+  threats_topic: 'artemis/threats'
+  # Publish engagement commands to:
+  commands_topic_prefix: 'artemis/commands'
+
+fusion:
+  # Extended Kalman Filter — state: [x, y, z, vx, vy, vz]
+  ekf:
+    process_noise_q: 0.1      # Tune higher for faster/more maneuverable drones
+    measurement_noise_r: 0.5
+    max_coast_frames: 10      # Drop a track after this many frames without an update
+
+  # Hungarian algorithm — maximum cost to allow a detection-to-track assignment
+  assignment:
+    max_distance_m: 50.0
+
+  # DBSCAN swarm detection
+  swarm:
+    eps_m: 100.0              # Cluster radius in metres
+    min_samples: 3            # Minimum tracks to declare a swarm
+
+  # A track must be confirmed by at least N sensor layers before being published
+  confirmation:
+    min_sensor_layers: 2
+
+cognition:
+  # AI agent timeouts (ms) — agents run in parallel after track confirmation
+  classifier_timeout_ms: 50
+  predictor_timeout_ms: 20
+  scheduler_timeout_ms: 10
+  spoof_timeout_ms: 30
+
+  # LLM / model backend for agent reasoning (optional — set to 'local' for offline)
+  backend: 'local'            # 'local' | 'openai' | 'anthropic'
+  # api_key: ''               # Only required if backend is 'openai' or 'anthropic'
+
+api:
+  # WebSocket threat feed update rate
+  ws_push_rate_hz: 10
+  # CORS allowed origins for the dashboard
+  cors_origins:
+    - 'http://localhost:3000'
+    - 'http://localhost:4173'
+
+logging:
+  level: INFO
+  file: logs/artemis-hub.log
+  rotate_mb: 100
+  keep_backups: 10

@@ -1,0 +1,25 @@
+name: 10_drone_swarm
+description: |
+  10-drone coordinated swarm approaching from multiple vectors.
+  Tests DBSCAN swarm detection and multi-target EKF tracking.
+
+swarm:
+  formation: converging     # converging | line | grid | random
+  center:
+    lat: 17.4050
+    lon: 78.4867
+    alt_m: 100
+  spread_m: 200             # Initial spread radius
+  speed_mps: 12
+
+drones:
+  - { id: drone-001, model: DJI_Mini3,   rf_freq: 2437000000, power_db: -47 }
+  - { id: drone-002, model: DJI_Mavic3,  rf_freq: 2437000000, power_db: -44 }
+  - { id: drone-003, model: Autel_Evo2,  rf_freq: 5780000000, power_db: -50 }
+  - { id: drone-004, model: DJI_Mini3,   rf_freq: 2437000000, power_db: -48 }
+  - { id: drone-005, model: FPV_Generic, rf_freq: 915000000,  power_db: -42 }
+  - { id: drone-006, model: DJI_Mavic3,  rf_freq: 2437000000, power_db: -46 }
+  - { id: drone-007, model: DJI_Mini3,   rf_freq: 2437000000, power_db: -49 }
+  - { id: drone-008, model: Autel_Evo2,  rf_freq: 5780000000, power_db: -51 }
+  - { id: drone-009, model: FPV_Generic, rf_freq: 915000000,  power_db: -43 }
+  - { id: drone-010, model: DJI_Mavic3,  rf_freq: 2437000000, power_db: -45 }

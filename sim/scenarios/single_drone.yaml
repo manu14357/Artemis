@@ -1,0 +1,21 @@
+name: single_drone
+description: Single consumer DJI-class drone approaching from the north at 10 m/s.
+
+drones:
+  - id: drone-001
+    model: DJI_Mavic3
+    start:
+      lat: 17.4100
+      lon: 78.4867
+      alt_m: 80
+    waypoints:
+      - { lat: 17.3950, lon: 78.4867, alt_m: 80, speed_mps: 10 }
+      - { lat: 17.3850, lon: 78.4867, alt_m: 60, speed_mps: 8 }
+    sensors:
+      rf:
+        frequency: 2437000000
+        peak_power_db: -45
+      acoustic:
+        snr_db: 12
+      radar:
+        rcs: 0.02           # Radar cross-section in m²
