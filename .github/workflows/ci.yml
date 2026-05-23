@@ -67,6 +67,8 @@ jobs:
           pip install sounddevice || true
 
       - name: Run unit + integration tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           pytest tests/unit tests/integration -q \
             --tb=short \
