@@ -460,3 +460,4 @@ If ARTEMIS is useful to your research or organization, consider supporting devel
 ---
 
 *ARTEMIS v1 — Full Technical Documentation available in [docs/FULL_DOCUMENTATION.md](docs/artemis.md).*
+*Hardware wiring, sensor setup & commissioning guide: [docs/HARDWARE_SETUP.md](docs/HARDWARE_SETUP.md).*
