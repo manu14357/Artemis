@@ -60,7 +60,7 @@ jobs:
             pyyaml pydantic \
             prometheus-client structlog \
             slowapi python-jose[cryptography] \
-            pytest pytest-asyncio httpx
+            pytest pytest-asyncio httpx requests
           # Stub-install packages that need hardware so imports don't fail
           pip install pyrtlsdr || true
           pip install opencv-python-headless || true
