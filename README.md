@@ -57,8 +57,8 @@ ARTEMIS v1 is **not** a single device — it is a distributed sensor mesh where 
                           │
                 ┌─────────▼─────────┐
                 │    DASHBOARD      │
-                │  React + Three.js │
-                │  Mapbox 3D map    │
+                │  Next.js + Three.js│
+                │  3D threat map    │
                 └───────────────────┘
 ```
 
@@ -134,6 +134,7 @@ python hub/main.py --config hub/config/hub_default.yaml
 # 6. Terminal D — Dashboard
 cd dashboard
 npm install
+cp .env.local.example .env.local   # defaults point to localhost:8080
 npm run dev
 # Open http://localhost:3000
 ```
@@ -237,17 +238,21 @@ MQTT topic schema:
 
 ### Phase 3 — Dashboard
 
+The dashboard is built with **Next.js 14** (App Router) + **Three.js**.
+
 ```bash
 cd dashboard
 npm install
 
-# Edit src/config.ts:
-# export const HUB_WS_URL  = 'ws://192.168.1.100:8080/ws';
-# export const HUB_REST_URL = 'http://192.168.1.100:8080';
-# export const MAPBOX_TOKEN = 'your-mapbox-token-here';
+# Copy and fill in environment variables
+cp .env.local.example .env.local
+# Edit .env.local:
+# NEXT_PUBLIC_HUB_URL=http://192.168.1.100:8080
+# NEXT_PUBLIC_HUB_WS_URL=ws://192.168.1.100:8080/ws
 
-npm run dev     # Development — http://localhost:3000
-npm run build   # Production build → dist/
+npm run dev     # Development — http://localhost:3000  (Turbopack)
+npm run build   # Production build → .next/
+npm run start   # Serve production build on :3000
 ```
 
 ---
@@ -319,12 +324,19 @@ artemis/
 │   ├── main.py
 │   └── config/hub_default.yaml
 │
-├── dashboard/                        # React + Three.js + Mapbox GL JS
-│   └── src/components/
-│       ├── ThreatMap.tsx
-│       ├── NodeStatus.tsx
-│       ├── DetectionFeed.tsx
-│       └── EffectorPanel.tsx
+├── dashboard/                        # Next.js 14 + Three.js (App Router)
+│   └── src/
+│       ├── app/                      # Next.js app directory
+│       │   ├── layout.tsx            # Root layout (Server Component)
+│       │   ├── page.tsx              # Dashboard page ('use client')
+│       │   └── globals.css
+│       ├── components/
+│       │   ├── ThreatMap.tsx
+│       │   ├── NodeStatus.tsx
+│       │   ├── DetectionFeed.tsx
+│       │   └── EffectorPanel.tsx
+│       ├── hooks/useArtemisWS.ts
+│       └── types.ts
 │
 ├── sim/
 │   ├── drone_swarm.py
