@@ -1,0 +1,175 @@
+---
+# infra/k8s/network-policy.yaml
+# Network policies that implement least-privilege traffic rules for ARTEMIS.
+#
+# Default: deny all ingress/egress within the namespace.
+# Explicit allow rules open only the required paths.
+
+# ── 1. Default deny-all within namespace ──────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: artemis
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# ── 2. Dashboard → Hub API (HTTP :8080) ───────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dashboard-to-hub
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-hub
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: artemis-dashboard
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# ── 3. Hub → Mosquitto MQTT broker (:1883) ───────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-hub-to-mosquitto
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-mosquitto
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: artemis-hub
+      ports:
+        - protocol: TCP
+          port: 1883
+
+---
+# ── 4. Sensor nodes → Mosquitto MQTT broker (:1883) ─────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-nodes-to-mosquitto
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-mosquitto
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: artemis-node
+      ports:
+        - protocol: TCP
+          port: 1883
+
+---
+# ── 5. Prometheus → Hub /metrics scrape (:8080) ──────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-hub
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-hub
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: artemis-prometheus
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+# ── 6. Grafana → Prometheus (:9090) ──────────────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-grafana-to-prometheus
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-prometheus
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: artemis-grafana
+      ports:
+        - protocol: TCP
+          port: 9090
+
+---
+# ── 7. Ingress controller → Hub + Dashboard ──────────────────────────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-services
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-hub
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-to-dashboard
+  namespace: artemis
+spec:
+  podSelector:
+    matchLabels:
+      app: artemis-dashboard
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+
+---
+# ── 8. Allow DNS egress (needed for all pods to resolve hostnames) ────────────
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: artemis
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53

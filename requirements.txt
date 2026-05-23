@@ -43,3 +43,11 @@ psutil>=5.9.0
 # ─── GPIO (Raspberry Pi hardware effector) ───────────────────────────────────
 # Installed automatically on armv7l (RPi 32-bit OS); skipped on other platforms.
 RPi.GPIO>=0.7.1; platform_machine=="armv7l"
+
+# ─── Observability ───────────────────────────────────────────────────────────
+prometheus-client>=0.20.0
+structlog>=24.0.0
+
+# ─── API security ────────────────────────────────────────────────────────────
+slowapi>=0.1.9
+python-jose[cryptography]>=3.3.0

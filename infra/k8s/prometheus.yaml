@@ -1,0 +1,138 @@
+---
+# infra/k8s/prometheus.yaml
+# Prometheus StatefulSet + ConfigMap for ARTEMIS metrics scraping.
+#
+# Scrapes:
+#   - artemis-hub:8080/metrics   (Prometheus text format via /metrics)
+
+# ── ConfigMap: Prometheus scrape config ──────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artemis-prometheus-config
+  namespace: artemis
+  labels:
+    app: artemis-prometheus
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+      - job_name: 'artemis-hub'
+        static_configs:
+          - targets: ['artemis-hub:8080']
+        metrics_path: /metrics
+        scheme: http
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - artemis
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: "true"
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+---
+# ── Service: Prometheus internal service ─────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: artemis-prometheus
+  namespace: artemis
+  labels:
+    app: artemis-prometheus
+spec:
+  selector:
+    app: artemis-prometheus
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+  type: ClusterIP
+
+---
+# ── StatefulSet: Prometheus ───────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: artemis-prometheus
+  namespace: artemis
+  labels:
+    app: artemis-prometheus
+spec:
+  serviceName: artemis-prometheus
+  replicas: 1
+  selector:
+    matchLabels:
+      app: artemis-prometheus
+  template:
+    metadata:
+      labels:
+        app: artemis-prometheus
+    spec:
+      serviceAccountName: artemis-hub   # Prometheus needs to list pods for k8s SD
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.52.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=15d"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: data
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: artemis-prometheus-config
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 10Gi

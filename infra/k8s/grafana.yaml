@@ -1,0 +1,214 @@
+---
+# infra/k8s/grafana.yaml
+# Grafana Deployment with a pre-provisioned ARTEMIS dashboard.
+#
+# Default credentials: admin / artemis-grafana (change via secret below)
+
+# ── Secret: Grafana admin password ───────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: artemis-grafana-creds
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+type: Opaque
+data:
+  # base64-encoded; default is "artemis-grafana" — CHANGE IN PRODUCTION
+  GF_SECURITY_ADMIN_PASSWORD: YXJ0ZW1pcy1ncmFmYW5h
+
+---
+# ── ConfigMap: datasource provisioning ───────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artemis-grafana-datasources
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://artemis-prometheus:9090
+        isDefault: true
+        editable: false
+
+---
+# ── ConfigMap: dashboard provisioning ────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artemis-grafana-dashboard-provider
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: artemis
+        orgId: 1
+        folder: ARTEMIS
+        type: file
+        disableDeletion: true
+        options:
+          path: /var/lib/grafana/dashboards
+
+---
+# ── ConfigMap: ARTEMIS operational dashboard JSON ────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: artemis-grafana-dashboards
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+data:
+  artemis-overview.json: |
+    {
+      "title": "ARTEMIS Overview",
+      "uid": "artemis-overview",
+      "schemaVersion": 38,
+      "refresh": "5s",
+      "time": { "from": "now-15m", "to": "now" },
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Active Tracks",
+          "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+          "targets": [{ "expr": "artemis_active_tracks", "legendFormat": "tracks" }]
+        },
+        {
+          "type": "stat",
+          "title": "Hub Up",
+          "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+          "targets": [{ "expr": "artemis_up", "legendFormat": "up" }]
+        },
+        {
+          "type": "stat",
+          "title": "WS Clients",
+          "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+          "targets": [{ "expr": "artemis_ws_clients_connected", "legendFormat": "clients" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Detections / second by layer",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "targets": [{ "expr": "rate(artemis_detections_total[1m])", "legendFormat": "{{layer}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Fusion latency (p99)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "targets": [{ "expr": "histogram_quantile(0.99, rate(artemis_fusion_latency_seconds_bucket[1m]))", "legendFormat": "p99" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "Engagements by tier",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+          "targets": [{ "expr": "rate(artemis_engagements_total[1m])", "legendFormat": "{{tier}}" }]
+        },
+        {
+          "type": "timeseries",
+          "title": "MQTT messages published / s",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+          "targets": [{ "expr": "rate(artemis_mqtt_messages_total[1m])", "legendFormat": "{{topic_prefix}}" }]
+        }
+      ]
+    }
+
+---
+# ── Service: Grafana ClusterIP ────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: artemis-grafana
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+spec:
+  selector:
+    app: artemis-grafana
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3000
+  type: ClusterIP
+
+---
+# ── Deployment: Grafana ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: artemis-grafana
+  namespace: artemis
+  labels:
+    app: artemis-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: artemis-grafana
+  template:
+    metadata:
+      labels:
+        app: artemis-grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.2
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: artemis-grafana-creds
+                  key: GF_SECURITY_ADMIN_PASSWORD
+            - name: GF_USERS_ALLOW_SIGN_UP
+              value: "false"
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
+      volumes:
+        - name: datasources
+          configMap:
+            name: artemis-grafana-datasources
+        - name: dashboard-provider
+          configMap:
+            name: artemis-grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: artemis-grafana-dashboards

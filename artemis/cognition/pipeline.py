@@ -29,6 +29,7 @@ from __future__ import annotations
 from typing import Optional
 
 from artemis.action.engagement_log import EngagementLog, EngagementRecord
+from artemis.cognition.agents.classifier_agent import ClassifierAgent
 from artemis.cognition.agents.command_router import Command, CommandRouter
 from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.threat_scorer import ThreatScorer
@@ -64,6 +65,7 @@ class CognitionPipeline:
         publisher: MQTTPublisher,
         engagement_log: EngagementLog,
         effectors: Optional[list[str]] = None,
+        classifier: Optional[ClassifierAgent] = None,
     ) -> None:
         self._scorer = scorer
         self._router = router
@@ -71,6 +73,7 @@ class CognitionPipeline:
         self._publisher = publisher
         self._log = engagement_log
         self._effectors: list[str] = effectors or ["sim-relay-01"]
+        self._classifier: Optional[ClassifierAgent] = classifier
 
     # ------------------------------------------------------------------
     # Public API — called once per fusion cycle

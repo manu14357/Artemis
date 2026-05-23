@@ -27,8 +27,10 @@ import uvicorn
 from artemis.action.effectors.effector_manager import EffectorManager
 from artemis.action.effectors.sim_relay import SimRelay
 from artemis.action.engagement_log import EngagementLog
+from artemis.api.metrics import get_metrics
 from artemis.api.rest import create_app
 from artemis.api.websocket import register_websocket
+from artemis.cognition.agents.classifier_agent import ClassifierAgent
 from artemis.cognition.agents.command_router import CommandRouter
 from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.threat_scorer import ThreatScorer
@@ -120,11 +122,16 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
     effector_manager.register(sim_relay)
     effector_manager.start_all()
 
-    # Cognition pipeline
+    # Metrics singleton — mark hub as up
+    metrics = get_metrics()
+    metrics.set_hub_up(True)
+
+    # Cognition pipeline — ClassifierAgent wired in
     cognition_pipeline = CognitionPipeline(
         scorer=ThreatScorer(),
         router=CommandRouter(),
         scheduler=SchedulerAgent(),
+        classifier=ClassifierAgent(),
         publisher=publisher,
         engagement_log=engagement_log,
         effectors=effector_manager.get_active_effectors(),
@@ -142,13 +149,15 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
     )
     aggregator.start(loop=loop)
 
-    # FastAPI (publisher + engagement_log wired in)
+    # FastAPI (publisher + engagement_log + effector_manager wired in)
     app = create_app(
         threat_map=threat_map,
         aggregator=aggregator,
         cors_origins=cfg.api.cors_origins,
         publisher=publisher,
         engagement_log=engagement_log,
+        effector_manager=effector_manager,
+        rate_limit_per_min=getattr(cfg.api, 'rate_limit_per_min', 60),
     )
     register_websocket(app, threat_map, ws_push_rate_hz=cfg.api.ws_push_rate_hz)
 

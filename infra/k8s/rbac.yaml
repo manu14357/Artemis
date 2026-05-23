@@ -1,0 +1,102 @@
+---
+# infra/k8s/rbac.yaml
+# Minimal RBAC for ARTEMIS components.
+#
+# Each component runs under its own ServiceAccount with only the
+# Kubernetes API permissions it actually needs.
+
+# ── Namespace ──────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: artemis
+  labels:
+    app.kubernetes.io/part-of: artemis
+
+---
+# ── ServiceAccount: hub ────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: artemis-hub
+  namespace: artemis
+  labels:
+    app.kubernetes.io/part-of: artemis
+automountServiceAccountToken: false
+
+---
+# ── ServiceAccount: node ───────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: artemis-node
+  namespace: artemis
+  labels:
+    app.kubernetes.io/part-of: artemis
+automountServiceAccountToken: false
+
+---
+# ── Role: hub can read its own ConfigMaps and Secrets ─────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: artemis-hub-role
+  namespace: artemis
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["artemis-hub-config"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["artemis-api-keys", "artemis-mqtt-creds"]
+    verbs: ["get"]
+
+---
+# ── RoleBinding: hub ServiceAccount → hub Role ───────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: artemis-hub-rb
+  namespace: artemis
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: artemis-hub-role
+subjects:
+  - kind: ServiceAccount
+    name: artemis-hub
+    namespace: artemis
+
+---
+# ── Role: node can read its own ConfigMap and MQTT creds ─────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: artemis-node-role
+  namespace: artemis
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["artemis-node-config"]
+    verbs: ["get", "watch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["artemis-mqtt-creds"]
+    verbs: ["get"]
+
+---
+# ── RoleBinding: node ServiceAccount → node Role ─────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: artemis-node-rb
+  namespace: artemis
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: artemis-node-role
+subjects:
+  - kind: ServiceAccount
+    name: artemis-node
+    namespace: artemis

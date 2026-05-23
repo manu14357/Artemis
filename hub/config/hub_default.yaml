@@ -9,6 +9,10 @@ mqtt:
   broker: 127.0.0.1
   port: 1883
   keepalive: 60
+  tls_enabled: false
+  # Credentials loaded from env ARTEMIS_MQTT_USER / ARTEMIS_MQTT_PASS if set
+  username: ''
+  password: ''
   # Subscribe to all node sensor streams:
   node_topic_prefix: 'artemis/nodes'
   # Publish confirmed threats to:
@@ -54,6 +58,11 @@ api:
   cors_origins:
     - 'http://localhost:3000'
     - 'http://localhost:4173'
+  # Set to true to require X-API-Key header on write endpoints
+  # Keys are loaded from env var ARTEMIS_API_KEYS (comma-separated)
+  require_auth: false
+  # Maximum requests per IP per minute on rate-limited endpoints
+  rate_limit_per_min: 60
 
 logging:
   level: INFO

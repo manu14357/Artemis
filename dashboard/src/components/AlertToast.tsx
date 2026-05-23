@@ -27,10 +27,21 @@ const TIER_BORDER: Record<number, string> = {
 
 export default function AlertToast({ threats }: Props) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  // Track which threat IDs we have already fired an alert for
+  // Track which threat IDs we have already fired an alert for.
+  // Bug fix: remove IDs when a threat disappears so re-appearing threats re-fire.
   const seenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    const currentIds = new Set(threats.map((t) => t.threat_id));
+
+    // Remove IDs that are no longer present — allows re-alerting if a threat
+    // disappears and then comes back (e.g. track drop + re-acquire)
+    for (const id of seenRef.current) {
+      if (!currentIds.has(id)) {
+        seenRef.current.delete(id);
+      }
+    }
+
     const newToasts: ToastMessage[] = [];
     for (const t of threats) {
       if (t.tier >= 4 && !seenRef.current.has(t.threat_id)) {
@@ -60,6 +71,10 @@ export default function AlertToast({ threats }: Props) {
 
   if (toasts.length === 0) return null;
 
+  function dismiss(id: string) {
+    setToasts((prev) => prev.filter((m) => m.id !== id));
+  }
+
   return (
     <div
       style={{
@@ -70,7 +85,7 @@ export default function AlertToast({ threats }: Props) {
         display: 'flex',
         flexDirection: 'column',
         gap: 8,
-        pointerEvents: 'none',
+        pointerEvents: 'auto',
       }}
     >
       {toasts.map((toast) => (
@@ -96,7 +111,7 @@ export default function AlertToast({ threats }: Props) {
             >
               ⚠
             </span>
-            <div>
+            <div style={{ flex: 1 }}>
               <div
                 style={{
                   fontSize: 10,
@@ -111,6 +126,22 @@ export default function AlertToast({ threats }: Props) {
                 {toast.text}
               </div>
             </div>
+            {/* Manual dismiss button */}
+            <button
+              onClick={() => dismiss(toast.id)}
+              aria-label="Dismiss alert"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b',
+                fontSize: 14,
+                lineHeight: 1,
+                padding: '0 4px',
+              }}
+            >
+              ✕
+            </button>
           </div>
         </div>
       ))}

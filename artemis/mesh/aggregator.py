@@ -22,8 +22,10 @@ Architecture
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import TYPE_CHECKING, Optional
 
+from artemis.api.metrics import get_metrics
 from artemis.core.config import HubConfig
 from artemis.core.logging import get_logger
 from artemis.core.types import NodeStatus
@@ -79,6 +81,9 @@ class MeshAggregator:
 
         self._subscriber: Optional[MQTTSubscriber] = None
         self._running = False
+        # Timestamp of last successful fusion cycle — used by /health endpoint
+        self._last_fusion_ts: Optional[float] = None
+        self._metrics = get_metrics()
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -145,17 +150,30 @@ class MeshAggregator:
 
                 # Run fusion
                 try:
-                    tracks = self._track_manager.update(detections)
-                    self._threat_map.update(
-                        tracks,
-                        eps_m=self._config.fusion.swarm.eps_m,
-                        min_swarm_samples=self._config.fusion.swarm.min_samples,
-                    )
+                    with self._metrics.fusion_latency_timer():
+                        tracks = self._track_manager.update(detections)
+                        self._threat_map.update(
+                            tracks,
+                            eps_m=self._config.fusion.swarm.eps_m,
+                            min_swarm_samples=self._config.fusion.swarm.min_samples,
+                        )
+
+                    self._last_fusion_ts = time.time()
+
+                    # Record per-layer detection counts
+                    for det in detections:
+                        layer = getattr(det, "layer", None)
+                        if layer is not None:
+                            self._metrics.record_detection(str(layer))
+
+                    # Update active tracks gauge
+                    self._metrics.set_active_tracks(len(tracks))
 
                     # Re-publish threat snapshot over MQTT
                     snapshot = self._threat_map.get_snapshot()
                     if snapshot:
                         self._publisher.publish_threats(snapshot)
+                        self._metrics.record_mqtt_publish("artemis/threats")
                         log.debug("published %d threats", len(snapshot))
 
                     # Run cognition pipeline (score → route → schedule → dispatch)

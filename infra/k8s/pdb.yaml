@@ -1,0 +1,42 @@
+---
+# infra/k8s/pdb.yaml
+# PodDisruptionBudgets — ensure minimum availability during node drains,
+# rolling updates, and voluntary disruptions.
+
+# ── Hub: at least 1 replica always available ──────────────────────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: artemis-hub-pdb
+  namespace: artemis
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: artemis-hub
+
+---
+# ── Mosquitto MQTT broker: at least 1 replica always available ────────────────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: artemis-mosquitto-pdb
+  namespace: artemis
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: artemis-mosquitto
+
+---
+# ── Dashboard: allow 1 disruption at a time (can tolerate brief downtime) ─────
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: artemis-dashboard-pdb
+  namespace: artemis
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: artemis-dashboard

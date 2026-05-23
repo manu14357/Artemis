@@ -27,9 +27,20 @@ const TIER_COLOURS: Record<number, number> = {
 
 const GRID_SIZE   = 500;   // metres each side
 const GRID_DIV    = 10;
+const TRAIL_LEN   = 10;    // positions to retain per track
 
 interface Props {
   threats: Threat[];
+}
+
+/** Compute speed in m/s from velocity state if available */
+function computeSpeed(threat: Threat): string {
+  const vel = threat.velocity;
+  if (vel && typeof vel.vx === 'number') {
+    const speed = Math.sqrt(vel.vx ** 2 + vel.vy ** 2 + (vel.vz ?? 0) ** 2);
+    return speed.toFixed(1);
+  }
+  return '?';
 }
 
 /** Small detail card shown when the user clicks a threat sphere */
@@ -82,7 +93,7 @@ function ThreatPopover({
             ['ID', threat.threat_id],
             ['Type', threat.drone_type],
             ['Tier', `${threat.tier} — ${tierLabels[threat.tier] ?? ''}`],
-            ['Speed', `${threat.velocity_ms?.toFixed(1) ?? '?'} m/s`],
+            ['Speed', `${computeSpeed(threat)} m/s`],
             ['Range', `${dist} m`],
             ['Alt', `${Math.round(threat.position.z)} m`],
           ].map(([k, v]) => (
@@ -104,6 +115,9 @@ export default function ThreatMap({ threats }: Props) {
   const cameraRef    = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef  = useRef<OrbitControls | null>(null);
   const spheresRef   = useRef<Map<string, THREE.Mesh>>(new Map());
+  // Trails: one Points object per track, history of last TRAIL_LEN positions
+  const trailsRef       = useRef<Map<string, THREE.Points>>(new Map());
+  const trailHistoryRef = useRef<Map<string, THREE.Vector3[]>>(new Map());
   const frameRef     = useRef<number>(0);
   const threatsRef   = useRef<Threat[]>([]);
   const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null);
@@ -211,7 +225,7 @@ export default function ThreatMap({ threats }: Props) {
     };
   }, []);
 
-  // Update spheres whenever threats change
+  // Update spheres + trails whenever threats change
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
@@ -234,17 +248,60 @@ export default function ThreatMap({ threats }: Props) {
       }
 
       // Coordinate mapping: x=East, y=Up (alt), z=-North (Three.js y-up world)
-      mesh.position.set(t.position.x, t.position.z, -t.position.y);
+      const pos3 = new THREE.Vector3(t.position.x, t.position.z, -t.position.y);
+      mesh.position.copy(pos3);
       (mesh.material as THREE.MeshLambertMaterial).color.setHex(colour);
+
+      // ── Trail history ────────────────────────────────────────────────
+      const history = trailHistoryRef.current.get(t.threat_id) ?? [];
+      history.push(pos3.clone());
+      if (history.length > TRAIL_LEN) history.shift();
+      trailHistoryRef.current.set(t.threat_id, history);
+
+      // Build or replace trail Points geometry
+      const oldTrail = trailsRef.current.get(t.threat_id);
+      if (oldTrail) {
+        scene.remove(oldTrail);
+        oldTrail.geometry.dispose();
+        (oldTrail.material as THREE.Material).dispose();
+      }
+      if (history.length > 1) {
+        const positions = new Float32Array(history.length * 3);
+        history.forEach((v, i) => {
+          positions[i * 3]     = v.x;
+          positions[i * 3 + 1] = v.y;
+          positions[i * 3 + 2] = v.z;
+        });
+        const trailGeo = new THREE.BufferGeometry();
+        trailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const trailMat = new THREE.PointsMaterial({
+          color: colour,
+          size: 1.5,
+          transparent: true,
+          opacity: 0.4,
+        });
+        const trail = new THREE.Points(trailGeo, trailMat);
+        scene.add(trail);
+        trailsRef.current.set(t.threat_id, trail);
+      }
     }
 
-    // Remove stale spheres (including selected one if it disappeared)
+    // Remove stale spheres + trails (including selected one if it disappeared)
     for (const [id, mesh] of spheresRef.current.entries()) {
       if (!seen.has(id)) {
         scene.remove(mesh);
         (mesh.material as THREE.Material).dispose();
         (mesh.geometry as THREE.BufferGeometry).dispose();
         spheresRef.current.delete(id);
+        // Clean up trail
+        const trail = trailsRef.current.get(id);
+        if (trail) {
+          scene.remove(trail);
+          trail.geometry.dispose();
+          (trail.material as THREE.Material).dispose();
+          trailsRef.current.delete(id);
+        }
+        trailHistoryRef.current.delete(id);
       }
     }
 
