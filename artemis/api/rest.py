@@ -7,8 +7,10 @@ Endpoints
 GET  /           — health check
 GET  /status     — hub status + node registry
 GET  /threats    — current threat snapshot (JSON list)
+GET  /threats/{track_id}  — single threat by track id
 GET  /nodes      — registered node statuses
-POST /commands/{effector_id}  — send engagement command (sim only)
+POST /commands/{effector_id}  — dispatch engagement command via MQTT
+GET  /engagements             — recent engagement history (last 100)
 """
 from __future__ import annotations
 
@@ -19,7 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from artemis.action.engagement_log import EngagementLog
     from artemis.mesh.aggregator import MeshAggregator
+    from artemis.mesh.publisher import MQTTPublisher
     from artemis.fusion.threat_map import ThreatMap
 
 
@@ -33,15 +37,19 @@ def create_app(
     threat_map,
     aggregator,
     cors_origins: list[str] | None = None,
+    publisher=None,
+    engagement_log=None,
 ) -> FastAPI:
     """
     Factory that creates and configures the FastAPI application.
 
     Parameters
     ----------
-    threat_map  : ThreatMap
-    aggregator  : MeshAggregator (provides node registry)
-    cors_origins : list of allowed CORS origins
+    threat_map     : ThreatMap
+    aggregator     : MeshAggregator (provides node registry)
+    cors_origins   : list of allowed CORS origins
+    publisher      : MQTTPublisher — for dispatching manual commands
+    engagement_log : EngagementLog — for GET /engagements
     """
     app = FastAPI(
         title="ARTEMIS Hub API",
@@ -95,15 +103,35 @@ def create_app(
     @app.post("/commands/{effector_id}")
     async def send_command(effector_id: str, body: CommandBody):
         """
-        Send an engagement command to an effector (simulation only by default).
-        Body: {"action": "activate", "duration_s": 5}
+        Dispatch an engagement command to an effector via MQTT.
+
+        If no publisher is wired (test mode) the command is echoed back with
+        status ``queued_simulation``.
         """
-        # In simulation mode we just echo the command back.
-        # In production, this would route to the action/effectors layer.
+        command_dict = {
+            "effector_id": effector_id,
+            **body.model_dump(),
+        }
+        if publisher is not None:
+            publisher.publish_command(effector_id, command_dict)
+            return {
+                "effector_id": effector_id,
+                "command": body.model_dump(),
+                "status": "dispatched",
+            }
+        # Fallback: simulation mode (no publisher wired)
         return {
             "effector_id": effector_id,
             "command": body.model_dump(),
             "status": "queued_simulation",
         }
+
+    @app.get("/engagements")
+    async def get_engagements(limit: int = 100):
+        """Return the most recent engagement records (newest first)."""
+        if engagement_log is None:
+            return {"engagements": []}
+        n = max(1, min(limit, 500))   # clamp to [1, 500]
+        return {"engagements": engagement_log.recent(n)}
 
     return app

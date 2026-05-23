@@ -60,3 +60,23 @@ logging:
   file: logs/artemis-hub.log
   rotate_mb: 100
   keep_backups: 10
+
+# ── Effector configuration ────────────────────────────────────────────────
+effectors:
+  # SimRelay is always registered (publishes commands to MQTT only)
+  sim_relay:
+    enabled: true
+    effector_id: 'sim-relay-01'
+
+  # GPIORelayEffector — only active on Raspberry Pi hardware
+  gpio_relay:
+    enabled: false                  # set true on RPi nodes
+    effector_id: 'gpio-relay-01'
+    pins: [17, 27, 22, 23]          # BCM pin assignments (4 channels)
+    default_duration_s: 5.0
+
+# ── Engagement log ────────────────────────────────────────────────────────
+engagement_log:
+  path: 'logs/engagements.ndjson'
+  # Maximum number of records returned by GET /engagements
+  max_recent: 500

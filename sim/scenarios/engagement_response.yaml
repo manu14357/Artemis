@@ -1,0 +1,64 @@
+# sim/scenarios/engagement_response.yaml
+# Scenario: 5 drones approaching from different angles to validate the
+# CognitionPipeline → SchedulerAgent → effector dispatch path.
+#
+# All five drones are set on inbound courses designed to exceed the
+# ThreatScorer's engagement threshold within ~30 s of simulation start.
+# The scenario is intended for use with sim/drone_swarm.py in headless mode.
+
+name: engagement_response
+description: >
+  Five approaching drones — one of each type — used to validate the end-to-end
+  cognition pipeline: ThreatScorer → CommandRouter → SchedulerAgent →
+  effector dispatch + EngagementLog recording.
+
+simulation:
+  step_hz: 10          # simulation steps per second
+  duration_s: 120      # run for 2 minutes
+
+drones:
+  - id: drone-mavic-01
+    type: DJI_MAVIC
+    start_position: { x: 800,  y: 0,    z: 80 }    # metres
+    velocity:        { vx: -8.0, vy: 0.0, vz: 0.0 } # m/s — approaching origin
+    sensor_layers: [rf, acoustic, radar, optical]
+    rf_protocol: OcuSync
+    rf_frequency_mhz: 2450
+
+  - id: drone-mini-01
+    type: DJI_MINI
+    start_position: { x: 0,    y: 600,  z: 40 }
+    velocity:        { vx: 0.0, vy: -6.0, vz: 0.0 }
+    sensor_layers: [rf, acoustic, optical]
+    rf_protocol: Enhanced_WiFi
+    rf_frequency_mhz: 5800
+
+  - id: drone-autel-01
+    type: AUTEL_EVO
+    start_position: { x: -700, y: 200,  z: 100 }
+    velocity:        { vx: 6.5, vy: -2.0, vz: 0.0 }
+    sensor_layers: [rf, radar]
+    rf_protocol: SkyLink
+    rf_frequency_mhz: 2400
+
+  - id: drone-fpv-01
+    type: FPV_GENERIC
+    start_position: { x: 300,  y: -500, z: 25 }
+    velocity:        { vx: -3.0, vy: 7.0, vz: 0.5 }
+    sensor_layers: [acoustic, radar]
+
+  - id: drone-unknown-01
+    type: UNKNOWN
+    start_position: { x: -200, y: -300, z: 60 }
+    velocity:        { vx: 2.5, vy: 4.0, vz: -0.5 }
+    sensor_layers: [radar, acoustic]
+
+engagement_assertions:
+  # All five drones should be engaged (not IGNORE) within 60 s
+  - description: "All five tracks escalate above IGNORE tier within 60 s"
+    max_time_s: 60
+    expected_min_engagements: 4
+
+  # No single effector should be double-assigned in any one cycle
+  - description: "No effector double-assignment"
+    check: no_duplicate_effector_per_cycle

@@ -11,8 +11,10 @@
  */
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import AlertToast from '../components/AlertToast';
 import DetectionFeed from '../components/DetectionFeed';
 import EffectorPanel from '../components/EffectorPanel';
+import EngagementHistory from '../components/EngagementHistory';
 import NodeStatus from '../components/NodeStatus';
 import ThreatMap from '../components/ThreatMap';
 import { useArtemisWS } from '../hooks/useArtemisWS';
@@ -130,6 +132,10 @@ export default function DashboardPage() {
             <SectionTitle>Sensor Nodes</SectionTitle>
             <NodeStatus />
           </section>
+          <section>
+            <SectionTitle>Engagement History</SectionTitle>
+            <EngagementHistory />
+          </section>
         </div>
 
         {/* Right: 3-D threat map */}
@@ -146,6 +152,9 @@ export default function DashboardPage() {
           <EffectorPanel threats={threats} />
         </div>
       </div>
+
+      {/* Alert toasts for Tier 4/5 threats */}
+      <AlertToast threats={threats} />
     </div>
   );
 }

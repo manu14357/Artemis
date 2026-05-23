@@ -22,7 +22,7 @@ Architecture
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from artemis.core.config import HubConfig
 from artemis.core.logging import get_logger
@@ -31,6 +31,9 @@ from artemis.fusion.threat_map import ThreatMap
 from artemis.fusion.track_manager import TrackManager
 from artemis.mesh.publisher import MQTTPublisher
 from artemis.mesh.subscriber import MQTTSubscriber
+
+if TYPE_CHECKING:
+    from artemis.cognition.pipeline import CognitionPipeline
 
 log = get_logger("mesh.aggregator")
 
@@ -59,12 +62,14 @@ class MeshAggregator:
         threat_map: ThreatMap,
         publisher: MQTTPublisher,
         fusion_cycle_hz: float = 10.0,
+        pipeline: Optional["CognitionPipeline"] = None,
     ) -> None:
         self._config = config
         self._track_manager = track_manager
         self._threat_map = threat_map
         self._publisher = publisher
         self._cycle_s = 1.0 / fusion_cycle_hz
+        self._pipeline = pipeline
 
         # Node status registry {node_id: NodeStatus}
         self.nodes: dict[str, NodeStatus] = {}
@@ -152,6 +157,10 @@ class MeshAggregator:
                     if snapshot:
                         self._publisher.publish_threats(snapshot)
                         log.debug("published %d threats", len(snapshot))
+
+                    # Run cognition pipeline (score → route → schedule → dispatch)
+                    if self._pipeline:
+                        self._pipeline.process(tracks)
 
                 except Exception as exc:
                     log.error("fusion cycle error: %s", exc, exc_info=True)

@@ -7,7 +7,9 @@ Starts:
   1. Mosquitto MQTT broker (via subprocess, unless --no-broker)
   2. MeshAggregator (MQTT subscriber + fusion loop)
   3. MQTTPublisher (for outbound threat/command messages)
-  4. FastAPI REST + WebSocket server (uvicorn)
+  4. CognitionPipeline (ThreatScorer → CommandRouter → SchedulerAgent)
+  5. EffectorManager (SimRelay; GPIO relay if enabled in config)
+  6. FastAPI REST + WebSocket server (uvicorn)
 
 Usage:
     python hub/main.py --config hub/config/hub_default.yaml [--no-broker]
@@ -22,8 +24,15 @@ import sys
 
 import uvicorn
 
+from artemis.action.effectors.effector_manager import EffectorManager
+from artemis.action.effectors.sim_relay import SimRelay
+from artemis.action.engagement_log import EngagementLog
 from artemis.api.rest import create_app
 from artemis.api.websocket import register_websocket
+from artemis.cognition.agents.command_router import CommandRouter
+from artemis.cognition.agents.scheduler_agent import SchedulerAgent
+from artemis.cognition.agents.threat_scorer import ThreatScorer
+from artemis.cognition.pipeline import CognitionPipeline
 from artemis.core.config import HubConfig
 from artemis.core.logging import get_logger, setup_logging
 from artemis.fusion.threat_map import ThreatMap
@@ -96,7 +105,32 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
             break
         await asyncio.sleep(0.1)
 
-    # Mesh aggregator + fusion loop
+    # Engagement log
+    engagement_log = EngagementLog(path="logs/engagements.ndjson")
+
+    # Effector manager — register SimRelay by default
+    effector_manager = EffectorManager()
+    sim_relay = SimRelay(
+        effector_id="sim-relay-01",
+        broker=cfg.mqtt.broker,
+        port=cfg.mqtt.port,
+        username=cfg.mqtt.username,
+        password=cfg.mqtt.password,
+    )
+    effector_manager.register(sim_relay)
+    effector_manager.start_all()
+
+    # Cognition pipeline
+    cognition_pipeline = CognitionPipeline(
+        scorer=ThreatScorer(),
+        router=CommandRouter(),
+        scheduler=SchedulerAgent(),
+        publisher=publisher,
+        engagement_log=engagement_log,
+        effectors=effector_manager.get_active_effectors(),
+    )
+
+    # Mesh aggregator + fusion loop (pipeline injected here)
     loop = asyncio.get_running_loop()
     aggregator = MeshAggregator(
         config=cfg,
@@ -104,14 +138,17 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         threat_map=threat_map,
         publisher=publisher,
         fusion_cycle_hz=cfg.api.ws_push_rate_hz,
+        pipeline=cognition_pipeline,
     )
     aggregator.start(loop=loop)
 
-    # FastAPI
+    # FastAPI (publisher + engagement_log wired in)
     app = create_app(
         threat_map=threat_map,
         aggregator=aggregator,
         cors_origins=cfg.api.cors_origins,
+        publisher=publisher,
+        engagement_log=engagement_log,
     )
     register_websocket(app, threat_map, ws_push_rate_hz=cfg.api.ws_push_rate_hz)
 
@@ -138,6 +175,7 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         log.info("shutdown requested")
     finally:
         aggregator.stop()
+        effector_manager.stop_all()
         publisher.disconnect()
         if mosquitto_proc:
             mosquitto_proc.terminate()

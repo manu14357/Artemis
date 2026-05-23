@@ -1,0 +1,107 @@
+---
+# infra/k8s/node.yaml
+# ARTEMIS sensor node — DaemonSet for Raspberry Pi edge nodes.
+#
+# Each RPi node runs the ARTEMIS node daemon which:
+#   - Reads RF / acoustic / radar / optical detections from local hardware
+#   - Publishes raw detection frames to the hub MQTT broker
+#   - Subscribes to artemis/commands/{effector_id} for GPIO engagement control
+#
+# Node selection: pods are scheduled only on nodes labelled
+#   artemis.io/role=sensor-node
+# Apply this label on each RPi:
+#   kubectl label node <node-name> artemis.io/role=sensor-node
+
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: sensor-node
+  namespace: artemis
+  labels:
+    app: sensor-node
+    component: artemis-node
+spec:
+  selector:
+    matchLabels:
+      app: sensor-node
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: sensor-node
+        component: artemis-node
+    spec:
+      # Only deploy on RPi nodes
+      nodeSelector:
+        artemis.io/role: sensor-node
+
+      # Run as privileged so the node process can access GPIO + hardware devices
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+
+      containers:
+        - name: node
+          image: python:3.11-slim
+          workingDir: /app
+          command:
+            - bash
+            - -lc
+            - |
+              pip install --no-cache-dir -r requirements.txt &&
+              python node/main.py --config node/config/node_default.yaml
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: ARTEMIS_MQTT_BROKER
+              value: hub.artemis.svc.cluster.local
+            # NODE_ID is injected from the k8s node name so each pod is unique
+            - name: ARTEMIS_NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          # Expose GPIO and I2C device files to the container
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+            - name: dev-gpiomem
+              mountPath: /dev/gpiomem
+            - name: dev-i2c
+              mountPath: /dev/i2c-1
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+
+      # Tolerations allow scheduling on Raspberry Pi nodes that may have
+      # taints applied (e.g. node-role.kubernetes.io/edge:NoSchedule)
+      tolerations:
+        - key: "node-role.kubernetes.io/edge"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      volumes:
+        - name: app-code
+          hostPath:
+            path: /opt/artemis
+            type: DirectoryOrCreate
+        - name: dev-gpiomem
+          hostPath:
+            path: /dev/gpiomem
+        - name: dev-i2c
+          hostPath:
+            path: /dev/i2c-1

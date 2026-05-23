@@ -85,3 +85,13 @@ export interface HubStatus {
   threat_count: number;
   node_count:   number;
 }
+
+/** One dispatched engagement record from GET /engagements */
+export interface Engagement {
+  track_id:    string;
+  effector_id: string;
+  tier:        EngagementTier;
+  score:       number;
+  position:    ThreatPosition;
+  timestamp:   number;
+}

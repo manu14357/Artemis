@@ -42,6 +42,8 @@ spec:
           volumeMounts:
             - name: app-code
               mountPath: /app
+            - name: engagement-logs
+              mountPath: /app/logs
           resources:
             requests:
               cpu: "200m"
@@ -68,6 +70,23 @@ spec:
           hostPath:
             path: /opt/artemis
             type: DirectoryOrCreate
+        - name: engagement-logs
+          persistentVolumeClaim:
+            claimName: hub-engagement-logs
+
+---
+# PVC for persistent engagement log storage
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hub-engagement-logs
+  namespace: artemis
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
 
 ---
 apiVersion: v1
