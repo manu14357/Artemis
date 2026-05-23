@@ -94,10 +94,10 @@ def triangulate(
     # System: (sum_i (I - d_i*d_i^T)) * P = sum_i (I - d_i*d_i^T) * O_i
     A = np.zeros((2, 2))
     b = np.zeros(2)
-    for O, d in zip(origins, directions):
+    for orig, d in zip(origins, directions):
         M = np.eye(2) - np.outer(d, d)
         A += M
-        b += M @ O
+        b += M @ orig
 
     try:
         pos = np.linalg.solve(A, b)
@@ -106,8 +106,8 @@ def triangulate(
 
     # Confidence: inverse of mean residual distance (metres)
     residuals = []
-    for O, d in zip(origins, directions):
-        diff = pos - O
+    for orig, d in zip(origins, directions):
+        diff = pos - orig
         dist = np.linalg.norm(diff - (diff @ d) * d)
         residuals.append(float(dist))
     mean_residual = sum(residuals) / len(residuals)

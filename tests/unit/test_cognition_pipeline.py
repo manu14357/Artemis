@@ -2,8 +2,7 @@
 tests/unit/test_cognition_pipeline.py
 Unit tests for CognitionPipeline.process() — end-to-end cognition loop.
 """
-import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock
 
 from artemis.cognition.pipeline import CognitionPipeline
 from artemis.cognition.agents.command_router import EngagementTier

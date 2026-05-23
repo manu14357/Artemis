@@ -4,9 +4,8 @@ Unit tests for TrackManager lifecycle (TENTATIVE → CONFIRMED → COASTED → D
 """
 import time
 
-import pytest
 
-from artemis.core.types import RadarDetection, RFDetection, TrackStatus
+from artemis.core.types import RadarDetection, TrackStatus
 from artemis.fusion.track_manager import TrackManager
 
 
@@ -64,7 +63,7 @@ class TestTrackManager:
         # Coast until dropped
         for _ in range(10):
             tracks = self.mgr.update([])
-        dropped = [t for t in tracks if t.status == TrackStatus.DROPPED]
+        [t for t in tracks if t.status == TrackStatus.DROPPED]
         # After many empty frames, track should be dropped (removed from active list)
         # all_tracks includes dropped until next cycle
         assert len(self.mgr.get_confirmed_tracks()) == 0

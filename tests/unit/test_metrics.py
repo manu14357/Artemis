@@ -5,7 +5,6 @@ Unit tests for artemis.api.metrics — Prometheus instrumentation.
 Note: prometheus_client uses a module-level registry, so we access
 the singleton directly rather than creating new instances.
 """
-import pytest
 
 from artemis.api.metrics import get_metrics
 

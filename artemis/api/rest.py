@@ -32,11 +32,7 @@ from artemis.api.auth import require_auth
 from artemis.api.metrics import get_metrics
 
 if TYPE_CHECKING:
-    from artemis.action.effectors.effector_manager import EffectorManager
-    from artemis.action.engagement_log import EngagementLog
-    from artemis.mesh.aggregator import MeshAggregator
-    from artemis.mesh.publisher import MQTTPublisher
-    from artemis.fusion.threat_map import ThreatMap
+    pass
 
 
 class CommandBody(BaseModel):

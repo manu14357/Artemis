@@ -13,9 +13,7 @@ from __future__ import annotations
 import statistics
 import time
 import uuid
-from typing import Iterator
 
-import pytest
 
 from artemis.cognition.agents.command_router import CommandRouter
 from artemis.cognition.agents.threat_scorer import ThreatScorer
@@ -207,7 +205,7 @@ class TestSwarm1000Throughput:
 
 def _standalone_benchmark() -> None:
     print("=" * 60)
-    print(f"ARTEMIS 1000-drone swarm load benchmark")
+    print("ARTEMIS 1000-drone swarm load benchmark")
     print("=" * 60)
 
     N = 1000

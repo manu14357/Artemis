@@ -7,7 +7,6 @@ No real MQTT broker is required.
 """
 from __future__ import annotations
 
-import json
 import time
 from unittest.mock import MagicMock
 

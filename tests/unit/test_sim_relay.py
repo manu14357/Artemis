@@ -8,8 +8,7 @@ These tests inject MQTT messages directly via the _on_message callback
 from __future__ import annotations
 
 import json
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

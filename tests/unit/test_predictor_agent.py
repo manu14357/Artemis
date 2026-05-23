@@ -2,7 +2,6 @@
 tests/unit/test_predictor_agent.py
 Unit tests for PredictorAgent — CPA-based trajectory prediction.
 """
-import math
 import pytest
 
 from artemis.cognition.agents.predictor_agent import PredictorAgent

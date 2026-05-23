@@ -14,9 +14,7 @@ the aggregator's asyncio.Queue.
 """
 from __future__ import annotations
 
-import asyncio
-import time
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 
 import pytest
 

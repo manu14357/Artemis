@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -19,7 +18,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from artemis.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from artemis.fusion.threat_map import ThreatMap
+    pass
 
 log = get_logger("api.websocket")
 

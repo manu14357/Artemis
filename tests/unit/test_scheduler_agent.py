@@ -2,7 +2,6 @@
 tests/unit/test_scheduler_agent.py
 Unit tests for SchedulerAgent — greedy 1-to-1 command/effector matching.
 """
-import pytest
 
 from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.command_router import EngagementTier

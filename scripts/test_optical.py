@@ -9,7 +9,6 @@ Exit 0 = pass / device absent (skip), Exit 1 = hard failure.
 """
 from __future__ import annotations
 
-import sys
 
 
 def _test_picamera() -> tuple[bool, str]:

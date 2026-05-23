@@ -17,7 +17,7 @@ Timeout: 20 ms (hub_default.yaml cognition.predictor_timeout_ms)
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from artemis.core.logging import get_logger
 from artemis.core.types import Track

@@ -5,7 +5,6 @@ Unit tests for GET /health and GET /metrics REST endpoints.
 import time
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from artemis.api.rest import create_app

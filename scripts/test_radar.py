@@ -8,7 +8,6 @@ Exit 0 = pass / device absent (skip), Exit 1 = hard failure.
 """
 from __future__ import annotations
 
-import sys
 import time
 
 CANDIDATE_PORTS = ["/dev/ttyUSB0", "/dev/ttyACM0", "/dev/ttyUSB1"]

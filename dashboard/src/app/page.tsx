@@ -11,13 +11,16 @@
  */
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import AlertToast from '../components/AlertToast';
 import DetectionFeed from '../components/DetectionFeed';
 import EffectorPanel from '../components/EffectorPanel';
 import EngagementHistory from '../components/EngagementHistory';
 import NodeStatus from '../components/NodeStatus';
-import ThreatMap from '../components/ThreatMap';
 import { useArtemisWS } from '../hooks/useArtemisWS';
+
+// MapLibre GL uses WebGL and browser-only APIs — must disable SSR
+const ThreatMap = dynamic(() => import('../components/ThreatMap'), { ssr: false });
 
 export default function DashboardPage() {
   const { threats, connected } = useArtemisWS();

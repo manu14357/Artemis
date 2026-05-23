@@ -4,11 +4,9 @@ Unit tests for artemis.cognition.agents.threat_scorer.ThreatScorer
 """
 from __future__ import annotations
 
-import time
 
-import pytest
 
-from artemis.cognition.agents.threat_scorer import ThreatScorer, _DRONE_BASE_SCORE
+from artemis.cognition.agents.threat_scorer import ThreatScorer
 from artemis.core.types import DroneType, SensorLayer, Track, TrackStatus
 
 

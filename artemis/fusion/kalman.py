@@ -108,8 +108,8 @@ class EKFTracker:
         K = self.P @ self.H.T @ np.linalg.inv(S)
         # Update state
         self.x = self.x + K @ y
-        I = np.eye(self.DIM_STATE)
-        self.P = (I - K @ self.H) @ self.P
+        eye_n = np.eye(self.DIM_STATE)
+        self.P = (eye_n - K @ self.H) @ self.P
         return self.x.copy()
 
     # ------------------------------------------------------------------

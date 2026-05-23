@@ -30,7 +30,7 @@ from typing import Any
 try:
     from artemis.cognition.agents.command_router import CommandRouter
     from artemis.cognition.agents.threat_scorer import ThreatScorer
-    from artemis.core.types import DroneType, SensorLayer, Track, TrackStatus
+    from artemis.core.types import SensorLayer, Track, TrackStatus
     from artemis.mesh.triangulator import triangulate
 except ImportError as exc:
     print(f"ERROR: Cannot import ARTEMIS modules: {exc}", file=sys.stderr)

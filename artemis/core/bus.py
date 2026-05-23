@@ -15,7 +15,6 @@ Subscribers receive events via asyncio.Queue so they never block the publisher.
 from __future__ import annotations
 
 import asyncio
-import fnmatch
 from collections import defaultdict
 from typing import Any, Callable, Coroutine
 
@@ -140,7 +139,7 @@ def _topic_matches(pattern: str, topic: str) -> bool:
     if pattern == topic:
         return True
     # Convert MQTT wildcards to fnmatch glob
-    glob = pattern.replace("+", "[^/]+").replace("#", "**")
+    pattern.replace("+", "[^/]+").replace("#", "**")
     # Use fnmatch with a regex-like approach
     parts_p = pattern.split("/")
     parts_t = topic.split("/")

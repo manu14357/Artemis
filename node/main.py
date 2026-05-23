@@ -22,12 +22,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import logging
 import signal
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Optional psutil (graceful fallback if not installed on bare metal)
@@ -200,7 +198,7 @@ async def _heartbeat_loop(
             lat=cfg.location.lat,
             lon=cfg.location.lon,
             alt_m=cfg.location.alt_m,
-            sensors_active=[l.value for l in active_layers],
+            sensors_active=[layer.value for layer in active_layers],
             last_heartbeat=time.time(),
             online=True,
             cpu_percent=cpu,

@@ -2,8 +2,6 @@
 tests/unit/test_classifier_agent.py
 Unit tests for ClassifierAgent — 4-layer evidence fusion.
 """
-import pytest
-from unittest.mock import MagicMock
 
 from artemis.cognition.agents.classifier_agent import ClassifierAgent
 from artemis.core.types import (

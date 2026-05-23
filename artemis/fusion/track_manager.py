@@ -32,7 +32,6 @@ from artemis.core.types import (
     OpticalDetection,
     RadarDetection,
     RFDetection,
-    SensorLayer,
     Track,
     TrackStatus,
 )
@@ -259,7 +258,7 @@ def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
         # Optical gives a 2-D bounding box; range must come from another sensor.
         bx, by, bw, bh = det.bbox
         cx = bx + bw / 2
-        cy = by + bh / 2
+        by + bh / 2
         r = det.range_m
         # Normalise pixel centre to rough bearing offset (assume 60° horizontal FOV)
         bearing_deg = (cx - 320) / 320 * 30.0

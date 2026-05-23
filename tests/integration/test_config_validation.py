@@ -6,10 +6,9 @@ All tests run in-process with no hardware required.
 """
 from __future__ import annotations
 
-import os
 import pytest
 
-from artemis.core.config import HubConfig, MQTTConfig, NodeConfig
+from artemis.core.config import HubConfig, NodeConfig
 from artemis.core.config_validator import (
     apply_hub_env_overrides,
     apply_node_env_overrides,

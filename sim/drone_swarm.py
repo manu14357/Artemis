@@ -29,7 +29,6 @@ from dataclasses import dataclass, field
 import yaml
 
 from artemis.core.logging import get_logger, setup_logging
-from artemis.core.types import DroneType
 from artemis.mesh.publisher import MQTTPublisher
 from sim.acoustic_emulator import make_acoustic_emulator
 from sim.optical_emulator import make_optical_emulator
@@ -104,8 +103,8 @@ class Drone:
                 wp["lat"], wp["lon"], wp.get("alt_m", self.alt_m),
                 self.lat, self.lon,
             )
-            target_x = tx + self.lat    # local frame target
-            target_y = ty + self.lon
+            tx + self.lat    # local frame target
+            ty + self.lon
             dist = math.hypot(tx, ty, tz)
 
             speed = wp.get("speed_mps", 10.0)
@@ -156,7 +155,7 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
         drone_id = entry.get("id", f"drone-{i:03d}")
         model    = entry.get("model", "unknown")
         freq     = int(entry.get("rf_freq", 2437000000))
-        power_db = float(entry.get("power_db", -50.0))
+        float(entry.get("power_db", -50.0))
 
         # Starting position
         start = entry.get("start", {})

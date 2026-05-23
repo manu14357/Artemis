@@ -1,344 +1,357 @@
 'use client';
 /**
- * ThreatMap.tsx
- * Three.js scene rendered on a <canvas> showing live drone positions
- * as coloured spheres in a local-Cartesian coordinate frame.
+ * ThreatMap.tsx — ARTEMIS real-world threat map using MapLibre GL JS.
  *
- * Controls: left-drag to orbit, right-drag to pan, scroll to zoom.
- * Click a sphere to show a detail popover for that threat.
+ * Base tiles: OpenFreeMap "dark" style — completely free, no API key, OSM data.
  *
- * Must be 'use client' — Three.js uses browser-only globals (window, document,
- * ResizeObserver, WebGLRenderingContext).
+ * Coordinate system: threats arrive in local Cartesian metres from hub:
+ *   x → East,  y → Altitude,  z → South  (−z = North)
+ * Converted to WGS-84 [lon, lat] for MapLibre rendering.
  *
- * Tier colour scale: 1=green, 2=yellow, 3=orange, 4=red, 5=crimson
+ * Controls: drag to pan, scroll to zoom, right-drag / Ctrl+drag to tilt/rotate.
+ * Click a threat circle to inspect details.
  */
-import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import MapGL, {
+  Source,
+  Layer,
+  Marker,
+  Popup,
+  NavigationControl,
+  type MapRef,
+} from 'react-map-gl/maplibre';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import type { FeatureCollection, Feature, LineString, Point } from 'geojson';
 import type { Threat } from '../types';
 
-const TIER_COLOURS: Record<number, number> = {
-  1: 0x22c55e,   // green-500
-  2: 0xeab308,   // yellow-500
-  3: 0xf97316,   // orange-500
-  4: 0xef4444,   // red-500
-  5: 0xbe123c,   // rose-700
+// ── Config ────────────────────────────────────────────────────────────────────
+const MAP_STYLE   = 'https://tiles.openfreemap.org/styles/dark';
+const TRAIL_LEN   = 8;
+
+/** Hub default (London). Replace with hub GPS API feed if available. */
+const DEFAULT_LAT = 51.5074;
+const DEFAULT_LON = -0.1278;
+
+const TIER_COLOUR: Record<number, string> = {
+  1: '#22c55e',
+  2: '#eab308',
+  3: '#f97316',
+  4: '#ef4444',
+  5: '#be123c',
 };
 
-const GRID_SIZE   = 500;   // metres each side
-const GRID_DIV    = 10;
-const TRAIL_LEN   = 10;    // positions to retain per track
+/** Detection-layer range rings — matches README sensor specs. */
+const RINGS = [
+  { r: 300,  label: '300 m · Acoustic/Optical', color: '#10b981' },
+  { r: 1000, label: '1 km · RF close',          color: '#3b82f6' },
+  { r: 3000, label: '3 km · RF typical',        color: '#6366f1' },
+  { r: 5000, label: '5 km · RF max',            color: '#8b5cf6' },
+] as const;
 
-interface Props {
-  threats: Threat[];
+// ── Geo helpers ───────────────────────────────────────────────────────────────
+
+/** Convert local Cartesian metres (x=East, z=South) to [lon, lat]. */
+function toCoord(x: number, z: number, cLat: number, cLon: number): [number, number] {
+  const lat = cLat + (-z) / 111_319.9;
+  const lon = cLon + x / (111_319.9 * Math.cos((cLat * Math.PI) / 180));
+  return [lon, lat];
 }
 
-/** Compute speed in m/s from velocity state if available */
-function computeSpeed(threat: Threat): string {
-  const vel = threat.velocity;
-  if (vel && typeof vel.vx === 'number') {
-    const speed = Math.sqrt(vel.vx ** 2 + vel.vy ** 2 + (vel.vz ?? 0) ** 2);
-    return speed.toFixed(1);
+/** Build a closed GeoJSON LineString ring at given radius in metres. */
+function buildRing(
+  cLat: number, cLon: number, radiusM: number, color: string,
+): Feature<LineString> {
+  const coords: [number, number][] = [];
+  const N = 96;
+  for (let i = 0; i <= N; i++) {
+    const a = (i / N) * 2 * Math.PI;
+    const dLat = (radiusM * Math.cos(a)) / 111_319.9;
+    const dLon = (radiusM * Math.sin(a)) / (111_319.9 * Math.cos((cLat * Math.PI) / 180));
+    coords.push([cLon + dLon, cLat + dLat]);
   }
-  return '?';
-}
-
-/** Small detail card shown when the user clicks a threat sphere */
-function ThreatPopover({
-  threat,
-  onClose,
-}: {
-  threat: Threat;
-  onClose: () => void;
-}) {
-  const dist = Math.round(
-    Math.sqrt(threat.position.x ** 2 + threat.position.y ** 2 + threat.position.z ** 2)
-  );
-  const tierLabels: Record<number, string> = {
-    1: 'TRACK ONLY', 2: 'LOW', 3: 'MODERATE', 4: 'HIGH', 5: 'CRITICAL',
+  return {
+    type: 'Feature',
+    properties: { r: radiusM, color },
+    geometry: { type: 'LineString', coordinates: coords },
   };
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 12,
-        left: 12,
-        background: '#0f172a',
-        border: '1px solid #1e3a5f',
-        borderRadius: 8,
-        padding: '10px 14px',
-        minWidth: 200,
-        zIndex: 10,
-        boxShadow: '0 4px 24px #00000080',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', letterSpacing: 1 }}>
-          THREAT DETAIL
-        </span>
-        <button
-          onClick={onClose}
-          style={{
-            background: 'none', border: 'none', color: '#475569',
-            cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1,
-          }}
-          aria-label="Close"
-        >
-          ✕
-        </button>
-      </div>
-      <table style={{ fontSize: 11, borderCollapse: 'collapse', width: '100%' }}>
-        <tbody>
-          {[
-            ['ID', threat.threat_id],
-            ['Type', threat.drone_type],
-            ['Tier', `${threat.tier} — ${tierLabels[threat.tier] ?? ''}`],
-            ['Speed', `${computeSpeed(threat)} m/s`],
-            ['Range', `${dist} m`],
-            ['Alt', `${Math.round(threat.position.z)} m`],
-          ].map(([k, v]) => (
-            <tr key={k}>
-              <td style={{ color: '#475569', paddingRight: 8, paddingBottom: 4 }}>{k}</td>
-              <td style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{v}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
 }
 
-export default function ThreatMap({ threats }: Props) {
-  const mountRef     = useRef<HTMLDivElement>(null);
-  const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
-  const sceneRef     = useRef<THREE.Scene | null>(null);
-  const cameraRef    = useRef<THREE.PerspectiveCamera | null>(null);
-  const controlsRef  = useRef<OrbitControls | null>(null);
-  const spheresRef   = useRef<Map<string, THREE.Mesh>>(new Map());
-  // Trails: one Points object per track, history of last TRAIL_LEN positions
-  const trailsRef       = useRef<Map<string, THREE.Points>>(new Map());
-  const trailHistoryRef = useRef<Map<string, THREE.Vector3[]>>(new Map());
-  const frameRef     = useRef<number>(0);
-  const threatsRef   = useRef<Threat[]>([]);
-  const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null);
+// ── Props ─────────────────────────────────────────────────────────────────────
+interface Props {
+  threats:    Threat[];
+  centerLat?: number;
+  centerLon?: number;
+}
 
-  // Keep threatsRef in sync for the click handler (avoids stale closure)
+// ── Component ─────────────────────────────────────────────────────────────────
+export default function ThreatMap({
+  threats,
+  centerLat = DEFAULT_LAT,
+  centerLon = DEFAULT_LON,
+}: Props) {
+  const mapRef    = useRef<MapRef>(null);
+  const trailsRef = useRef<globalThis.Map<string, [number, number][]>>(
+    new globalThis.Map(),
+  );
+  const [selected, setSelected] = useState<Threat | null>(null);
+
+  // ── Real GPS: use browser geolocation, fall back to props/default ─────────
+  const [cLat, setCLat] = useState(centerLat);
+  const [cLon, setCLon] = useState(centerLon);
+
   useEffect(() => {
-    threatsRef.current = threats;
-  }, [threats]);
-
-  // One-time scene setup
-  useEffect(() => {
-    if (!mountRef.current) return;
-    const el = mountRef.current;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0d1117);
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(60, el.clientWidth / el.clientHeight, 1, 5000);
-    camera.position.set(0, -600, 400);
-    camera.lookAt(0, 0, 0);
-    cameraRef.current = camera;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(el.clientWidth, el.clientHeight);
-    el.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    // OrbitControls — mouse/touch camera navigation
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.08;
-    controls.minDistance = 50;
-    controls.maxDistance = 3000;
-    controls.maxPolarAngle = Math.PI / 1.8;   // prevent flip under ground
-    controlsRef.current = controls;
-
-    // Grid (X-Y ground plane)
-    const grid = new THREE.GridHelper(GRID_SIZE, GRID_DIV, 0x1e40af, 0x1e3a5f);
-    grid.rotation.x = Math.PI / 2;
-    scene.add(grid);
-
-    // Origin marker (hub position)
-    const originGeo = new THREE.SphereGeometry(6, 8, 8);
-    const originMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    scene.add(new THREE.Mesh(originGeo, originMat));
-
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-    dir.position.set(200, 200, 400);
-    scene.add(dir);
-
-    // ── Click-to-select handler ──────────────────────────────────────
-    const raycaster = new THREE.Raycaster();
-    const onCanvasClick = (e: MouseEvent) => {
-      const rect = el.getBoundingClientRect();
-      const mouse = new THREE.Vector2(
-        ((e.clientX - rect.left) / el.clientWidth)  *  2 - 1,
-        -((e.clientY - rect.top)  / el.clientHeight) *  2 + 1,
-      );
-      raycaster.setFromCamera(mouse, camera);
-      const meshes = [...spheresRef.current.values()];
-      const hits = raycaster.intersectObjects(meshes);
-      if (hits.length === 0) {
-        setSelectedThreat(null);
-        return;
-      }
-      const hitMesh = hits[0].object;
-      // Find the threat whose sphere was hit
-      for (const [id, mesh] of spheresRef.current.entries()) {
-        if (mesh === hitMesh) {
-          const found = threatsRef.current.find((t) => t.threat_id === id) ?? null;
-          setSelectedThreat(found);
-          return;
-        }
-      }
-    };
-    renderer.domElement.addEventListener('click', onCanvasClick);
-
-    // Resize observer
-    const ro = new ResizeObserver(() => {
-      if (!el || !cameraRef.current || !rendererRef.current) return;
-      cameraRef.current.aspect = el.clientWidth / el.clientHeight;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(el.clientWidth, el.clientHeight);
-    });
-    ro.observe(el);
-
-    function animate() {
-      frameRef.current = requestAnimationFrame(animate);
-      controls.update();   // needed for damping
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    return () => {
-      cancelAnimationFrame(frameRef.current);
-      ro.disconnect();
-      controls.dispose();
-      renderer.domElement.removeEventListener('click', onCanvasClick);
-      renderer.dispose();
-      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
-    };
+    if (!navigator?.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setCLat(coords.latitude);
+        setCLon(coords.longitude);
+        mapRef.current?.flyTo({
+          center: [coords.longitude, coords.latitude],
+          zoom: 11.5,
+          duration: 1200,
+        });
+      },
+      () => { /* permission denied or unavailable — keep default */ },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
   }, []);
 
-  // Update spheres + trails whenever threats change
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!scene) return;
-
-    const seen = new Set<string>();
-
+  // ── Update trail history (synchronous derivation) ─────────────────────────
+  useMemo(() => {
+    const trails = trailsRef.current;
+    const alive  = new Set(threats.map((t) => t.threat_id));
+    for (const id of trails.keys()) if (!alive.has(id)) trails.delete(id);
     for (const t of threats) {
-      seen.add(t.threat_id);
-      const colour = TIER_COLOURS[t.tier] ?? 0xffffff;
-      let mesh = spheresRef.current.get(t.threat_id);
-
-      if (!mesh) {
-        // Scale sphere radius by tier (T5 is larger — more visible)
-        const radius = 3 + t.tier;
-        const geo = new THREE.SphereGeometry(radius, 12, 12);
-        const mat = new THREE.MeshLambertMaterial({ color: colour });
-        mesh = new THREE.Mesh(geo, mat);
-        scene.add(mesh);
-        spheresRef.current.set(t.threat_id, mesh);
-      }
-
-      // Coordinate mapping: x=East, y=Up (alt), z=-North (Three.js y-up world)
-      const pos3 = new THREE.Vector3(t.position.x, t.position.z, -t.position.y);
-      mesh.position.copy(pos3);
-      (mesh.material as THREE.MeshLambertMaterial).color.setHex(colour);
-
-      // ── Trail history ────────────────────────────────────────────────
-      const history = trailHistoryRef.current.get(t.threat_id) ?? [];
-      history.push(pos3.clone());
-      if (history.length > TRAIL_LEN) history.shift();
-      trailHistoryRef.current.set(t.threat_id, history);
-
-      // Build or replace trail Points geometry
-      const oldTrail = trailsRef.current.get(t.threat_id);
-      if (oldTrail) {
-        scene.remove(oldTrail);
-        oldTrail.geometry.dispose();
-        (oldTrail.material as THREE.Material).dispose();
-      }
-      if (history.length > 1) {
-        const positions = new Float32Array(history.length * 3);
-        history.forEach((v, i) => {
-          positions[i * 3]     = v.x;
-          positions[i * 3 + 1] = v.y;
-          positions[i * 3 + 2] = v.z;
-        });
-        const trailGeo = new THREE.BufferGeometry();
-        trailGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        const trailMat = new THREE.PointsMaterial({
-          color: colour,
-          size: 1.5,
-          transparent: true,
-          opacity: 0.4,
-        });
-        const trail = new THREE.Points(trailGeo, trailMat);
-        scene.add(trail);
-        trailsRef.current.set(t.threat_id, trail);
-      }
+      const coord = toCoord(t.position.x, t.position.z, cLat, cLon);
+      const pts   = trails.get(t.threat_id) ?? [];
+      pts.push(coord);
+      if (pts.length > TRAIL_LEN) pts.splice(0, pts.length - TRAIL_LEN);
+      trails.set(t.threat_id, pts);
     }
+  }, [threats, cLat, cLon]);
 
-    // Remove stale spheres + trails (including selected one if it disappeared)
-    for (const [id, mesh] of spheresRef.current.entries()) {
-      if (!seen.has(id)) {
-        scene.remove(mesh);
-        (mesh.material as THREE.Material).dispose();
-        (mesh.geometry as THREE.BufferGeometry).dispose();
-        spheresRef.current.delete(id);
-        // Clean up trail
-        const trail = trailsRef.current.get(id);
-        if (trail) {
-          scene.remove(trail);
-          trail.geometry.dispose();
-          (trail.material as THREE.Material).dispose();
-          trailsRef.current.delete(id);
-        }
-        trailHistoryRef.current.delete(id);
-      }
-    }
+  // ── GeoJSON: threat circles ───────────────────────────────────────────────
+  const threatGeoJSON = useMemo((): FeatureCollection<Point> => ({
+    type: 'FeatureCollection',
+    features: threats.map((t): Feature<Point> => {
+      const [lon, lat] = toCoord(t.position.x, t.position.z, cLat, cLon);
+      return {
+        type: 'Feature',
+        id: t.threat_id,
+        properties: {
+          id:    t.threat_id,
+          color: TIER_COLOUR[t.tier] ?? '#ffffff',
+          label: `T${t.tier}`,
+          alt:   Math.round(t.position.y),
+        },
+        geometry: { type: 'Point', coordinates: [lon, lat] },
+      };
+    }),
+  }), [threats, cLat, cLon]);
 
-    // Clear popover if selected threat is gone
-    setSelectedThreat((prev) => {
-      if (!prev) return null;
-      return threats.find((t) => t.threat_id === prev.threat_id) ?? null;
-    });
-  }, [threats]);
+  // ── GeoJSON: trails ───────────────────────────────────────────────────────
+  const trailGeoJSON = useMemo((): FeatureCollection<LineString> => ({
+    type: 'FeatureCollection',
+    features: [...trailsRef.current.entries()]
+      .filter(([, pts]) => pts.length >= 2)
+      .map(([id, pts]): Feature<LineString> => {
+        const t = threats.find((x) => x.threat_id === id);
+        return {
+          type: 'Feature',
+          properties: { color: TIER_COLOUR[t?.tier ?? 1] ?? '#fff' },
+          geometry: { type: 'LineString', coordinates: pts },
+        };
+      }),
+  }), [threats]);
 
+  // ── GeoJSON: range rings ──────────────────────────────────────────────────
+  const ringGeoJSON = useMemo((): FeatureCollection<LineString> => ({
+    type: 'FeatureCollection',
+    features: RINGS.map((ring) => buildRing(cLat, cLon, ring.r, ring.color)),
+  }), [cLat, cLon]);
+
+  const ringLabelGeoJSON = useMemo((): FeatureCollection<Point> => ({
+    type: 'FeatureCollection',
+    features: RINGS.map((ring): Feature<Point> => ({
+      type: 'Feature',
+      properties: { label: ring.label, color: ring.color },
+      geometry: {
+        type: 'Point',
+        coordinates: [
+          cLon + ring.r / (111_319.9 * Math.cos((cLat * Math.PI) / 180)) + 0.00008,
+          cLat,
+        ],
+      },
+    })),
+  }), [cLat, cLon]);
+
+  // ── Click handler ─────────────────────────────────────────────────────────
+  const handleClick = useCallback(
+    (e: { features?: Array<{ properties?: Record<string, unknown> | null }> }) => {
+      const id = e.features?.[0]?.properties?.['id'] as string | undefined;
+      if (!id) { setSelected(null); return; }
+      setSelected(threats.find((t) => t.threat_id === id) ?? null);
+    },
+    [threats],
+  );
+
+  const popupCoords = selected
+    ? toCoord(selected.position.x, selected.position.z, cLat, cLon)
+    : null;
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 400 }}>
-      <div
-        ref={mountRef}
-        style={{ width: '100%', height: '100%', borderRadius: 8 }}
-      />
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 440 }}>
+      <MapGL
+        ref={mapRef}
+        mapStyle={MAP_STYLE}
+        initialViewState={{
+          longitude: cLon,
+          latitude:  cLat,
+          zoom:      11.5,
+          pitch:     25,
+          bearing:   0,
+        }}
+        style={{ width: '100%', height: '100%' }}
+        interactiveLayerIds={['threat-circles']}
+        onClick={handleClick as Parameters<typeof MapGL>[0]['onClick']}
+        attributionControl={false}
+      >
+        <NavigationControl position="top-right" />
 
-      {/* Threat detail popover */}
-      {selectedThreat && (
-        <ThreatPopover
-          threat={selectedThreat}
-          onClose={() => setSelectedThreat(null)}
-        />
-      )}
+        {/* ── Range rings ──────────────────────────────────────────── */}
+        <Source id="rings" type="geojson" data={ringGeoJSON}>
+          <Layer
+            id="range-rings"
+            type="line"
+            paint={{
+              'line-color': ['get', 'color'],
+              'line-width': 1,
+              'line-opacity': 0.55,
+              'line-dasharray': [4, 4],
+            }}
+          />
+        </Source>
 
+        {/* ── Ring labels ───────────────────────────────────────────── */}
+        <Source id="ring-labels" type="geojson" data={ringLabelGeoJSON}>
+          <Layer
+            id="ring-label-text"
+            type="symbol"
+            layout={{
+              'text-field': ['get', 'label'],
+              'text-size': 10,
+              'text-anchor': 'left',
+            }}
+            paint={{
+              'text-color': ['get', 'color'],
+              'text-halo-color': '#080d14',
+              'text-halo-width': 1.5,
+            }}
+          />
+        </Source>
+
+        {/* ── Threat trails ─────────────────────────────────────────── */}
+        <Source id="trails" type="geojson" data={trailGeoJSON}>
+          <Layer
+            id="trail-lines"
+            type="line"
+            paint={{
+              'line-color': ['get', 'color'],
+              'line-width': 1.5,
+              'line-opacity': 0.45,
+            }}
+          />
+        </Source>
+
+        {/* ── Threat circles + labels ───────────────────────────────── */}
+        <Source id="threats" type="geojson" data={threatGeoJSON}>
+          <Layer
+            id="threat-circles"
+            type="circle"
+            paint={{
+              'circle-radius': [
+                'interpolate', ['linear'], ['zoom'],
+                12, 7,
+                16, 16,
+              ],
+              'circle-color': ['get', 'color'],
+              'circle-opacity': 0.85,
+              'circle-stroke-width': 1.5,
+              'circle-stroke-color': '#ffffff',
+            }}
+          />
+          <Layer
+            id="threat-labels"
+            type="symbol"
+            layout={{
+              'text-field': ['get', 'label'],
+              'text-size': 10,
+              'text-offset': [0, 1.6],
+              'text-anchor': 'top',
+            }}
+            paint={{
+              'text-color': '#e2e8f0',
+              'text-halo-color': '#080d14',
+              'text-halo-width': 1.5,
+            }}
+          />
+        </Source>
+
+        {/* ── Hub marker ────────────────────────────────────────────── */}
+        <Marker longitude={cLon} latitude={cLat}>
+          <div
+            title="Hub"
+            style={{
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: '#3b82f6',
+              border: '2px solid #93c5fd',
+              boxShadow: '0 0 10px #3b82f6',
+              cursor: 'default',
+            }}
+          />
+        </Marker>
+
+        {/* ── Threat detail popup ───────────────────────────────────── */}
+        {selected && popupCoords && (
+          <Popup
+            longitude={popupCoords[0]}
+            latitude={popupCoords[1]}
+            closeButton
+            onClose={() => setSelected(null)}
+            anchor="bottom"
+            style={{ color: '#0f172a', fontSize: 12 }}
+          >
+            <div style={{ minWidth: 170 }}>
+              <strong style={{ display: 'block', marginBottom: 4 }}>
+                Track {selected.track_id.slice(-6)}
+              </strong>
+              <div>Tier {selected.tier} — {selected.drone_type}</div>
+              <div>Altitude: {Math.round(selected.position.y)} m</div>
+              <div>
+                Confidence:{' '}
+                {Math.round((selected.score ?? selected.confidence) * 100)}%
+              </div>
+              <div>Sensors: {selected.sensor_layers.join(', ')}</div>
+            </div>
+          </Popup>
+        )}
+      </MapGL>
+
+      {/* Attribution */}
       <div
         style={{
           position: 'absolute',
-          bottom: 8,
-          right: 10,
+          bottom: 4,
+          right: 4,
           fontSize: 9,
           color: '#475569',
           pointerEvents: 'none',
-          letterSpacing: 0.5,
         }}
       >
-        DRAG TO ORBIT · SCROLL TO ZOOM · CLICK TO INSPECT
+        © OpenFreeMap · © OpenStreetMap contributors
       </div>
     </div>
   );

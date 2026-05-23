@@ -7,7 +7,6 @@ from __future__ import annotations
 import pytest
 
 from artemis.cognition.agents.command_router import (
-    Command,
     CommandRouter,
     EngagementTier,
     _tier_from_score,
@@ -116,7 +115,7 @@ class TestCommandRouter:
         t = _make_track()
         self.router.route([t], {t.track_id: 0.65})
         # Next cycle: track not present (dropped) — state should be pruned
-        cmds = self.router.route([], {})
+        self.router.route([], {})
         assert t.track_id not in self.router._last_tier
 
     def test_command_to_dict(self) -> None:

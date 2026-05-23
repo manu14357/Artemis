@@ -17,7 +17,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from artemis.api.rest import create_app
-from artemis.api.metrics import get_metrics
 
 
 # ---------------------------------------------------------------------------

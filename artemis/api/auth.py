@@ -30,7 +30,7 @@ import logging
 import os
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 
 _log = logging.getLogger("api.auth")

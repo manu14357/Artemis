@@ -30,7 +30,6 @@ import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Callable
 
 
 class Status(str, Enum):

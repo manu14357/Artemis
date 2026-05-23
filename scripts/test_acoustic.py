@@ -8,7 +8,6 @@ Exit 0 = pass / device absent (skip), Exit 1 = hard failure.
 """
 from __future__ import annotations
 
-import sys
 
 # Number of 16-kHz mono samples to read
 BLOCK_SAMPLES = 1024

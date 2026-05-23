@@ -10,7 +10,6 @@ Exit 0 = pass, Exit 1 = fail / device not found.
 """
 from __future__ import annotations
 
-import sys
 
 
 def main() -> int:
