@@ -24,6 +24,7 @@ Open endpoints (no auth needed)
 - GET /metrics    (Prometheus scrape)
 - GET /ws         (WebSocket — has its own token= query-param check)
 """
+
 from __future__ import annotations
 
 import logging
@@ -42,6 +43,7 @@ _log = logging.getLogger("api.auth")
 _API_KEYS: frozenset[str] = frozenset()
 _AUTH_ENABLED: bool = False
 
+
 def _load_keys() -> None:
     global _API_KEYS, _AUTH_ENABLED
     raw = os.environ.get("ARTEMIS_API_KEYS", "").strip()
@@ -59,6 +61,7 @@ def _load_keys() -> None:
     _API_KEYS = frozenset(keys)
     _AUTH_ENABLED = True
     _log.info("API auth enabled — %d key(s) loaded", len(keys))
+
 
 # Load on import
 _load_keys()
@@ -81,7 +84,7 @@ async def require_auth(
     Raises HTTP 401 if auth is enabled and the key is missing or wrong.
     """
     if not _AUTH_ENABLED:
-        return None   # open mode — allow all
+        return None  # open mode — allow all
     if not api_key or api_key not in _API_KEYS:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

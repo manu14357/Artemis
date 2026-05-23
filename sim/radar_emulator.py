@@ -21,28 +21,28 @@ from artemis.core.types import RadarDetection
 
 # Radar cross-section per model (m²)
 _RCS_M2: dict[str, float] = {
-    "DJI_Mini3":   0.005,
-    "DJI_Mavic3":  0.010,
-    "Autel_Evo2":  0.012,
+    "DJI_Mini3": 0.005,
+    "DJI_Mavic3": 0.010,
+    "Autel_Evo2": 0.012,
     "FPV_Generic": 0.003,
-    "unknown":     0.005,
+    "unknown": 0.005,
 }
 
 # Rotor tip speed ≈ 0.3 * diameter_m * RPM / 60  (m/s)
 # Micro-Doppler spread ≈ 2 * v_tip / lambda; approximated empirically.
 _MICRO_DOPPLER_SPREAD: dict[str, float] = {
-    "DJI_Mini3":   18.0,   # Hz spread at 77 GHz equivalent model
-    "DJI_Mavic3":  22.0,
-    "Autel_Evo2":  24.0,
+    "DJI_Mini3": 18.0,  # Hz spread at 77 GHz equivalent model
+    "DJI_Mavic3": 22.0,
+    "Autel_Evo2": 24.0,
     "FPV_Generic": 35.0,
-    "unknown":     20.0,
+    "unknown": 20.0,
 }
 
-_MAX_RANGE_M    = 20.0   # XM125 effective range
-_MIN_RANGE_M    = 0.3
-_TX_POWER_DB    = 10.0   # dBm (nominal XM125 output)
-_THRESHOLD_SNR  = 8.0    # dB
-_NOISE_FLOOR    = -90.0  # dBm
+_MAX_RANGE_M = 20.0  # XM125 effective range
+_MIN_RANGE_M = 0.3
+_TX_POWER_DB = 10.0  # dBm (nominal XM125 output)
+_THRESHOLD_SNR = 8.0  # dB
+_NOISE_FLOOR = -90.0  # dBm
 
 
 def _radar_snr(rcs: float, distance_m: float) -> float:
@@ -50,15 +50,17 @@ def _radar_snr(rcs: float, distance_m: float) -> float:
     if distance_m <= 0:
         return 100.0
     # SNR ∝ RCS / d^4 (monostatic radar equation)
-    signal = _TX_POWER_DB + 10 * math.log10(max(rcs, 1e-9)) - 40 * math.log10(distance_m)
+    signal = (
+        _TX_POWER_DB + 10 * math.log10(max(rcs, 1e-9)) - 40 * math.log10(distance_m)
+    )
     return signal - _NOISE_FLOOR
 
 
 @dataclass
 class RadarEmulatorState:
-    drone_id:   str
-    model:      str
-    update_hz:  float = 20.0    # XM125 typical update rate
+    drone_id: str
+    model: str
+    update_hz: float = 20.0  # XM125 typical update rate
     range_noise_m: float = 0.05
     bearing_noise_deg: float = 2.0
     _next_update: float = field(default=0.0, repr=False)
@@ -82,7 +84,7 @@ class RadarEmulatorState:
         if snr < _THRESHOLD_SNR:
             return None
 
-        noisy_range   = distance_m + random.gauss(0, self.range_noise_m)
+        noisy_range = distance_m + random.gauss(0, self.range_noise_m)
         noisy_bearing = (bearing_deg + random.gauss(0, self.bearing_noise_deg)) % 360.0
         noisy_velocity = velocity_mps + random.gauss(0, 0.1)
 

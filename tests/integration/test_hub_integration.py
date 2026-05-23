@@ -8,6 +8,7 @@ the key API contracts expected by the dashboard and sensor nodes.
 
 All heavy I/O (MQTT, sensors) is replaced with MagicMock stubs.
 """
+
 import time
 from unittest.mock import MagicMock, patch
 import os
@@ -22,6 +23,7 @@ from artemis.api.rest import create_app
 # ---------------------------------------------------------------------------
 # Shared fixture
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture()
 def client():
@@ -65,6 +67,7 @@ def client():
 # Tests
 # ---------------------------------------------------------------------------
 
+
 def test_root_returns_ok(client):
     """GET / returns {"status": "ok", "service": "artemis-hub"}."""
     r = client.get("/")
@@ -79,7 +82,13 @@ def test_health_endpoint_structure(client):
     r = client.get("/health")
     assert r.status_code == 200
     body = r.json()
-    for key in ("status", "mqtt_connected", "aggregator_running", "track_count", "uptime_s"):
+    for key in (
+        "status",
+        "mqtt_connected",
+        "aggregator_running",
+        "track_count",
+        "uptime_s",
+    ):
         assert key in body, f"Missing key: {key}"
 
 
@@ -111,6 +120,7 @@ def test_command_without_auth_allowed_in_open_mode(client):
     """In open mode (no ARTEMIS_API_KEYS), POST /commands succeeds without a key."""
     # Reload auth in open mode
     import artemis.api.auth as auth_mod
+
     clean_env = {k: v for k, v in os.environ.items() if k != "ARTEMIS_API_KEYS"}
     with patch.dict(os.environ, clean_env, clear=True):
         importlib.reload(auth_mod)
@@ -124,6 +134,7 @@ def test_command_without_auth_allowed_in_open_mode(client):
 def test_classifier_agent_importable():
     """ClassifierAgent can be imported and instantiated (Bug #5 regression guard)."""
     from artemis.cognition.agents.classifier_agent import ClassifierAgent
+
     agent = ClassifierAgent()
     assert agent is not None
 
@@ -133,6 +144,7 @@ def test_cognition_pipeline_accepts_classifier():
     from unittest.mock import MagicMock
     from artemis.cognition.pipeline import CognitionPipeline
     from artemis.cognition.agents.classifier_agent import ClassifierAgent
+
     pipeline = CognitionPipeline(
         scorer=MagicMock(),
         router=MagicMock(),

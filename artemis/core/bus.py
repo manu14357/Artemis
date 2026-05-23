@@ -12,6 +12,7 @@ Topics follow the MQTT topic schema but are used purely in-process:
 
 Subscribers receive events via asyncio.Queue so they never block the publisher.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -93,7 +94,8 @@ class EventBus:
                     except asyncio.QueueFull:
                         log.warning(
                             "queue full, dropping event topic=%s pattern=%s",
-                            topic, pattern,
+                            topic,
+                            pattern,
                         )
                     # Schedule the callback as a task INSTEAD of also
                     # putting it on the queue — not in addition to it.
@@ -122,14 +124,13 @@ class EventBus:
             # the event loop is running before calling publish_sync.
             log.warning("publish_sync called with no running event loop; event dropped")
             return
-        loop.call_soon_threadsafe(
-            lambda: loop.create_task(self.publish(topic, event))
-        )
+        loop.call_soon_threadsafe(lambda: loop.create_task(self.publish(topic, event)))
 
 
 # ---------------------------------------------------------------------------
 # MQTT-style wildcard matching
 # ---------------------------------------------------------------------------
+
 
 def _topic_matches(pattern: str, topic: str) -> bool:
     """
@@ -149,7 +150,7 @@ def _topic_matches(pattern: str, topic: str) -> bool:
     while pi < len(parts_p) and ti < len(parts_t):
         pp = parts_p[pi]
         if pp == "#":
-            return True   # matches everything from here
+            return True  # matches everything from here
         if pp == "+" or pp == parts_t[ti]:
             pi += 1
             ti += 1

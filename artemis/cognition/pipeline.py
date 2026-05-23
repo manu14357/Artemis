@@ -24,6 +24,7 @@ Architecture
       MQTTPublisher.publish_command(effector_id, command.to_dict())
       EngagementLog.append(EngagementRecord(...))
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -107,7 +108,8 @@ class CognitionPipeline:
 
             log.debug(
                 "cognition cycle: %d commands from %d tracks",
-                len(commands), len(tracks),
+                len(commands),
+                len(tracks),
             )
 
             # Step 3: Schedule 1:1 effector assignments
@@ -133,7 +135,10 @@ class CognitionPipeline:
             self._publisher.publish_command(effector_id, cmd.to_dict())
             log.info(
                 "dispatched effector=%s track=%s tier=%s score=%.3f",
-                effector_id, cmd.track_id, cmd.tier.value, cmd.score,
+                effector_id,
+                cmd.track_id,
+                cmd.tier.value,
+                cmd.score,
             )
         except Exception as exc:
             log.error("publish_command failed effector=%s: %s", effector_id, exc)

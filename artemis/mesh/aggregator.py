@@ -19,6 +19,7 @@ Architecture
       ▼
   MQTTPublisher.publish_threats(snapshot)   ← publishes to artemis/threats
 """
+
 from __future__ import annotations
 
 import asyncio

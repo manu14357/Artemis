@@ -23,9 +23,7 @@ def main() -> int:
 
     # Find a suitable input device
     devices = sd.query_devices()
-    input_devs = [
-        d for d in devices if d["max_input_channels"] >= 1
-    ]
+    input_devs = [d for d in devices if d["max_input_channels"] >= 1]
     if not input_devs:
         print("SKIP — no audio input devices found")
         return 0
@@ -57,7 +55,7 @@ def main() -> int:
         print(f"FAIL — could not record from '{dev_name}': {exc}")
         return 1
 
-    rms = float(np.sqrt(np.mean(audio ** 2)))
+    rms = float(np.sqrt(np.mean(audio**2)))
     print(
         f"PASS — device='{dev_name}', channels={n_channels}, "
         f"samples={BLOCK_SAMPLES}, RMS={rms:.6f}"

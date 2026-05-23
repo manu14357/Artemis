@@ -15,6 +15,7 @@ call is required.  It completes in < 1 ms for typical detection sets.
 
 Timeout: 50 ms (hub_default.yaml cognition.classifier_timeout_ms)
 """
+
 from __future__ import annotations
 
 import math
@@ -42,27 +43,27 @@ log = get_logger("cognition.classifier")
 # XM125 micro-Doppler spread (m/s std-dev of Doppler fan) per drone type.
 # Larger rotors → lower spread; FPV high-RPM motors → higher spread.
 _DOPPLER_SPREAD: dict[DroneType, float] = {
-    DroneType.DJI_MAVIC:   0.45,
-    DroneType.DJI_MINI:    0.30,
-    DroneType.AUTEL_EVO:   0.45,
+    DroneType.DJI_MAVIC: 0.45,
+    DroneType.DJI_MINI: 0.30,
+    DroneType.AUTEL_EVO: 0.45,
     DroneType.FPV_GENERIC: 0.70,
-    DroneType.UNKNOWN:     0.40,
+    DroneType.UNKNOWN: 0.40,
 }
 
 # Optical: expected pixel-area range at ~100 m range for an 8 MP 1/2.3" sensor.
 _OPTICAL_AREA_RANGES: dict[DroneType, tuple[float, float]] = {
-    DroneType.DJI_MAVIC:   (300.0, 2000.0),
-    DroneType.DJI_MINI:    (80.0,  600.0),
-    DroneType.AUTEL_EVO:   (300.0, 2000.0),
-    DroneType.FPV_GENERIC: (60.0,  500.0),
+    DroneType.DJI_MAVIC: (300.0, 2000.0),
+    DroneType.DJI_MINI: (80.0, 600.0),
+    DroneType.AUTEL_EVO: (300.0, 2000.0),
+    DroneType.FPV_GENERIC: (60.0, 500.0),
 }
 
 # Vote weights per layer — layers with richer features get higher weight.
 _LAYER_WEIGHT: dict[SensorLayer, float] = {
-    SensorLayer.RF:       0.35,
+    SensorLayer.RF: 0.35,
     SensorLayer.ACOUSTIC: 0.25,
-    SensorLayer.RADAR:    0.25,
-    SensorLayer.OPTICAL:  0.15,
+    SensorLayer.RADAR: 0.25,
+    SensorLayer.OPTICAL: 0.15,
 }
 
 
@@ -70,17 +71,20 @@ _LAYER_WEIGHT: dict[SensorLayer, float] = {
 # Result dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ClassificationResult:
     """Output of ClassifierAgent.classify()."""
-    drone_type:  DroneType
-    confidence:  float            # 0–1 agreement ratio across layers
-    evidence:    dict[str, str]   # human-readable per-layer evidence strings
+
+    drone_type: DroneType
+    confidence: float  # 0–1 agreement ratio across layers
+    evidence: dict[str, str]  # human-readable per-layer evidence strings
 
 
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
+
 
 class ClassifierAgent:
     """
@@ -133,7 +137,9 @@ class ClassifierAgent:
 
         log.debug(
             "track=%s classified=%s conf=%.2f votes=%s",
-            track.track_id, best.value, confidence,
+            track.track_id,
+            best.value,
+            confidence,
             {k.value: round(v, 3) for k, v in votes.items()},
         )
 
@@ -169,14 +175,22 @@ class ClassifierAgent:
         note = f"RF: {det.drone_type.value} @ {det.confidence:.0%} conf"
         return det.drone_type, _LAYER_WEIGHT[SensorLayer.RF] * det.confidence, note
 
-    def _vote_acoustic(self, det: AcousticDetection) -> tuple[Optional[DroneType], float, str]:
+    def _vote_acoustic(
+        self, det: AcousticDetection
+    ) -> tuple[Optional[DroneType], float, str]:
         if det.drone_type == DroneType.UNKNOWN or det.confidence < 0.05:
             note = "Acoustic: no match"
             return DroneType.UNKNOWN, _LAYER_WEIGHT[SensorLayer.ACOUSTIC] * 0.3, note
         note = f"Acoustic: {det.drone_type.value} @ {det.confidence:.0%} conf"
-        return det.drone_type, _LAYER_WEIGHT[SensorLayer.ACOUSTIC] * det.confidence, note
+        return (
+            det.drone_type,
+            _LAYER_WEIGHT[SensorLayer.ACOUSTIC] * det.confidence,
+            note,
+        )
 
-    def _vote_radar(self, det: RadarDetection) -> tuple[Optional[DroneType], float, str]:
+    def _vote_radar(
+        self, det: RadarDetection
+    ) -> tuple[Optional[DroneType], float, str]:
         spread = det.micro_doppler_spread
         best_type = DroneType.UNKNOWN
         best_delta = math.inf
@@ -192,10 +206,16 @@ class ClassifierAgent:
         note = f"Radar: mDoppler={spread:.2f} → {best_type.value} (Δ={best_delta:.2f})"
         return best_type, _LAYER_WEIGHT[SensorLayer.RADAR] * conf, note
 
-    def _vote_optical(self, det: OpticalDetection) -> tuple[Optional[DroneType], float, str]:
+    def _vote_optical(
+        self, det: OpticalDetection
+    ) -> tuple[Optional[DroneType], float, str]:
         if det.drone_type != DroneType.UNKNOWN and det.confidence >= 0.05:
             note = f"Optical: {det.drone_type.value} @ {det.confidence:.0%} conf"
-            return det.drone_type, _LAYER_WEIGHT[SensorLayer.OPTICAL] * det.confidence, note
+            return (
+                det.drone_type,
+                _LAYER_WEIGHT[SensorLayer.OPTICAL] * det.confidence,
+                note,
+            )
         # Area-based fallback
         area = det.area
         for dtype, (lo, hi) in _OPTICAL_AREA_RANGES.items():

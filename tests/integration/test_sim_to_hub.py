@@ -9,6 +9,7 @@ Requires:
 Run with:
     pytest tests/integration/test_sim_to_hub.py -v --timeout=30
 """
+
 from __future__ import annotations
 
 import os
@@ -24,11 +25,11 @@ pytestmark = pytest.mark.skipif(
     reason="set ARTEMIS_INTEGRATION=1 to run integration tests",
 )
 
-HUB_CONFIG  = pathlib.Path("hub/config/hub_default.yaml")
-SCENARIO    = pathlib.Path("sim/scenarios/single_drone.yaml")
+HUB_CONFIG = pathlib.Path("hub/config/hub_default.yaml")
+SCENARIO = pathlib.Path("sim/scenarios/single_drone.yaml")
 BROKER_HOST = os.environ.get("ARTEMIS_BROKER", "127.0.0.1")
-API_URL     = "http://127.0.0.1:8080"
-TIMEOUT_S   = 20
+API_URL = "http://127.0.0.1:8080"
+TIMEOUT_S = 20
 
 
 @pytest.fixture(scope="module")
@@ -56,11 +57,16 @@ def sim_process():
 
     proc = subprocess.Popen(
         [
-            sys.executable, "sim/drone_swarm.py",
-            "--scenario", str(SCENARIO),
-            "--broker", BROKER_HOST,
-            "--duration", "30",
-            "--tick-hz", "20",
+            sys.executable,
+            "sim/drone_swarm.py",
+            "--scenario",
+            str(SCENARIO),
+            "--broker",
+            BROKER_HOST,
+            "--duration",
+            "30",
+            "--tick-hz",
+            "20",
         ],
         cwd=str(pathlib.Path(__file__).parent.parent.parent),
     )

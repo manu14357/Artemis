@@ -6,6 +6,7 @@ When 2+ nodes report bearings to the same RF signature, their bearing lines
 are intersected via least-squares to produce an estimated position fix.
 Accuracy: ~5–20 m at 500 m range with 3 nodes.
 """
+
 from __future__ import annotations
 
 import math
@@ -18,10 +19,12 @@ import numpy as np
 # Coordinate helpers
 # ---------------------------------------------------------------------------
 
-_EARTH_R_M = 6_371_000.0   # Earth radius in metres
+_EARTH_R_M = 6_371_000.0  # Earth radius in metres
 
 
-def latlon_to_xy(lat: float, lon: float, ref_lat: float, ref_lon: float) -> tuple[float, float]:
+def latlon_to_xy(
+    lat: float, lon: float, ref_lat: float, ref_lon: float
+) -> tuple[float, float]:
     """
     Convert (lat, lon) to local Cartesian (x, y) metres relative to a reference point.
     Uses equirectangular approximation — accurate to <1% within ~50 km.
@@ -37,10 +40,11 @@ def latlon_to_xy(lat: float, lon: float, ref_lat: float, ref_lon: float) -> tupl
 # Bearing-line intersection
 # ---------------------------------------------------------------------------
 
+
 def _bearing_line_direction(bearing_deg: float) -> tuple[float, float]:
     """Return unit vector (dx, dy) in local Cartesian for a bearing from north."""
     rad = math.radians(bearing_deg)
-    return math.sin(rad), math.cos(rad)   # (east, north)
+    return math.sin(rad), math.cos(rad)  # (east, north)
 
 
 def triangulate(
@@ -111,6 +115,6 @@ def triangulate(
         dist = np.linalg.norm(diff - (diff @ d) * d)
         residuals.append(float(dist))
     mean_residual = sum(residuals) / len(residuals)
-    confidence = 1.0 / (1.0 + mean_residual / 10.0)   # 0–1, 1 = perfect intersection
+    confidence = 1.0 / (1.0 + mean_residual / 10.0)  # 0–1, 1 = perfect intersection
 
     return float(pos[0]), float(pos[1]), round(confidence, 3)

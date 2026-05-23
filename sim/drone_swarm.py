@@ -44,8 +44,10 @@ _EARTH_R_M = 6_371_000.0
 # Coordinate helpers
 # ---------------------------------------------------------------------------
 
-def latlon_to_xyz(lat: float, lon: float, alt: float,
-                  ref_lat: float, ref_lon: float) -> tuple[float, float, float]:
+
+def latlon_to_xyz(
+    lat: float, lon: float, alt: float, ref_lat: float, ref_lon: float
+) -> tuple[float, float, float]:
     """Convert GPS to local Cartesian (metres East, North, Up)."""
     dlat = math.radians(lat - ref_lat)
     dlon = math.radians(lon - ref_lon)
@@ -56,8 +58,10 @@ def latlon_to_xyz(lat: float, lon: float, alt: float,
 
 
 def distance_and_bearing(
-    node_lat: float, node_lon: float,
-    drone_lat: float, drone_lon: float,
+    node_lat: float,
+    node_lon: float,
+    drone_lat: float,
+    drone_lon: float,
     drone_alt: float,
 ) -> tuple[float, float, float]:
     """
@@ -67,7 +71,7 @@ def distance_and_bearing(
     dx, dy, dz = latlon_to_xyz(drone_lat, drone_lon, drone_alt, node_lat, node_lon)
     horizontal = math.hypot(dx, dy)
     slant = math.hypot(horizontal, dz)
-    azimuth = math.degrees(math.atan2(dx, dy)) % 360.0   # E=90, N=0
+    azimuth = math.degrees(math.atan2(dx, dy)) % 360.0  # E=90, N=0
     elevation = math.degrees(math.atan2(dz, horizontal))
     return slant, azimuth, elevation
 
@@ -76,34 +80,38 @@ def distance_and_bearing(
 # Drone state
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Drone:
-    drone_id:   str
-    model:      str
-    lat:        float
-    lon:        float
-    alt_m:      float
-    vx_mps:     float = 0.0   # East m/s
-    vy_mps:     float = 0.0   # North m/s
-    vz_mps:     float = 0.0   # Up m/s
-    waypoints:  list[dict] = field(default_factory=list)
-    _wp_idx:    int = field(default=0, repr=False)
+    drone_id: str
+    model: str
+    lat: float
+    lon: float
+    alt_m: float
+    vx_mps: float = 0.0  # East m/s
+    vy_mps: float = 0.0  # North m/s
+    vz_mps: float = 0.0  # Up m/s
+    waypoints: list[dict] = field(default_factory=list)
+    _wp_idx: int = field(default=0, repr=False)
 
     # Per-sensor emulators
-    rf_emulator:       object = field(default=None, repr=False)
+    rf_emulator: object = field(default=None, repr=False)
     acoustic_emulator: object = field(default=None, repr=False)
-    radar_emulator:    object = field(default=None, repr=False)
-    optical_emulator:  object = field(default=None, repr=False)
+    radar_emulator: object = field(default=None, repr=False)
+    optical_emulator: object = field(default=None, repr=False)
 
     def step(self, dt: float) -> None:
         """Update position based on current velocity and waypoint target."""
         if self.waypoints and self._wp_idx < len(self.waypoints):
             wp = self.waypoints[self._wp_idx]
             tx, ty, tz = latlon_to_xyz(
-                wp["lat"], wp["lon"], wp.get("alt_m", self.alt_m),
-                self.lat, self.lon,
+                wp["lat"],
+                wp["lon"],
+                wp.get("alt_m", self.alt_m),
+                self.lat,
+                self.lon,
             )
-            tx + self.lat    # local frame target
+            tx + self.lat  # local frame target
             ty + self.lon
             dist = math.hypot(tx, ty, tz)
 
@@ -123,8 +131,8 @@ class Drone:
         # Apply velocity → update lat/lon/alt
         dlat = self.vy_mps * dt / _EARTH_R_M
         dlon = self.vx_mps * dt / (_EARTH_R_M * math.cos(math.radians(self.lat)))
-        self.lat   += math.degrees(dlat)
-        self.lon   += math.degrees(dlon)
+        self.lat += math.degrees(dlat)
+        self.lon += math.degrees(dlon)
         self.alt_m += self.vz_mps * dt
 
     @property
@@ -135,6 +143,7 @@ class Drone:
 # ---------------------------------------------------------------------------
 # Scenario loader
 # ---------------------------------------------------------------------------
+
 
 def load_scenario(path: pathlib.Path) -> list[Drone]:
     """Parse a scenario YAML and return a list of Drone objects."""
@@ -147,45 +156,54 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
     center_lat = center.get("lat", 17.385)
     center_lon = center.get("lon", 78.487)
     center_alt = center.get("alt_m", 100)
-    spread_m   = swarm_cfg.get("spread_m", 200)
-    formation  = swarm_cfg.get("formation", "random")
+    spread_m = swarm_cfg.get("spread_m", 200)
+    formation = swarm_cfg.get("formation", "random")
     default_speed = swarm_cfg.get("speed_mps", 10.0)
 
     for i, entry in enumerate(scenario.get("drones", [])):
         drone_id = entry.get("id", f"drone-{i:03d}")
-        model    = entry.get("model", "unknown")
-        freq     = int(entry.get("rf_freq", 2437000000))
+        model = entry.get("model", "unknown")
+        freq = int(entry.get("rf_freq", 2437000000))
         float(entry.get("power_db", -50.0))
 
         # Starting position
         start = entry.get("start", {})
         if start:
-            lat  = start.get("lat", center_lat)
-            lon  = start.get("lon", center_lon)
-            alt  = start.get("alt_m", center_alt)
+            lat = start.get("lat", center_lat)
+            lon = start.get("lon", center_lon)
+            alt = start.get("alt_m", center_alt)
         else:
             # Spread around swarm center
             angle = (2 * math.pi * i) / max(len(scenario["drones"]), 1)
-            fuzz  = random.uniform(0.5, 1.0)
-            dlat  = math.cos(angle) * spread_m * fuzz / _EARTH_R_M
-            dlon  = math.sin(angle) * spread_m * fuzz / (
-                _EARTH_R_M * math.cos(math.radians(center_lat))
+            fuzz = random.uniform(0.5, 1.0)
+            dlat = math.cos(angle) * spread_m * fuzz / _EARTH_R_M
+            dlon = (
+                math.sin(angle)
+                * spread_m
+                * fuzz
+                / (_EARTH_R_M * math.cos(math.radians(center_lat)))
             )
-            lat  = center_lat + math.degrees(dlat)
-            lon  = center_lon + math.degrees(dlon)
-            alt  = center_alt
+            lat = center_lat + math.degrees(dlat)
+            lon = center_lon + math.degrees(dlon)
+            alt = center_alt
 
         # Waypoints — converging formation targets center
         waypoints = entry.get("waypoints", [])
         if not waypoints and formation == "converging":
-            waypoints = [{"lat": center_lat, "lon": center_lon,
-                          "alt_m": center_alt - 20, "speed_mps": default_speed}]
+            waypoints = [
+                {
+                    "lat": center_lat,
+                    "lon": center_lon,
+                    "alt_m": center_alt - 20,
+                    "speed_mps": default_speed,
+                }
+            ]
 
         # Initial velocity (point toward swarm center)
         dlat_c = math.radians(center_lat - lat)
         dlon_c = math.radians(center_lon - lon)
-        dx_c   = dlon_c * _EARTH_R_M * math.cos(math.radians(lat))
-        dy_c   = dlat_c * _EARTH_R_M
+        dx_c = dlon_c * _EARTH_R_M * math.cos(math.radians(lat))
+        dy_c = dlat_c * _EARTH_R_M
         dist_c = math.hypot(dx_c, dy_c)
         if dist_c > 0 and formation == "converging":
             vx = dx_c / dist_c * default_speed
@@ -196,8 +214,11 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
         drone = Drone(
             drone_id=drone_id,
             model=model,
-            lat=lat, lon=lon, alt_m=alt,
-            vx_mps=vx, vy_mps=vy,
+            lat=lat,
+            lon=lon,
+            alt_m=alt,
+            vx_mps=vx,
+            vy_mps=vy,
             waypoints=waypoints,
             rf_emulator=make_rf_emulator(drone_id, model, freq),
             acoustic_emulator=make_acoustic_emulator(drone_id, model),
@@ -205,8 +226,14 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
             optical_emulator=make_optical_emulator(drone_id, model),
         )
         drones.append(drone)
-        log.debug("loaded drone %s model=%s at (%.4f, %.4f, %.1fm)",
-                  drone_id, model, lat, lon, alt)
+        log.debug(
+            "loaded drone %s model=%s at (%.4f, %.4f, %.1fm)",
+            drone_id,
+            model,
+            lat,
+            lon,
+            alt,
+        )
 
     return drones
 
@@ -214,6 +241,7 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
 # ---------------------------------------------------------------------------
 # Simulation loop
 # ---------------------------------------------------------------------------
+
 
 async def run_simulation(
     drones: list[Drone],
@@ -226,12 +254,16 @@ async def run_simulation(
     duration_s: float = 300.0,
 ) -> None:
     """Main async simulation loop."""
-    tick_s    = 1.0 / tick_hz
-    end_time  = time.monotonic() + duration_s
+    tick_s = 1.0 / tick_hz
+    end_time = time.monotonic() + duration_s
     tick_count = 0
 
-    log.info("simulation started drones=%d tick_hz=%.0f duration_s=%.0f",
-             len(drones), tick_hz, duration_s)
+    log.info(
+        "simulation started drones=%d tick_hz=%.0f duration_s=%.0f",
+        len(drones),
+        tick_hz,
+        duration_s,
+    )
 
     while time.monotonic() < end_time:
         t0 = time.monotonic()
@@ -240,12 +272,15 @@ async def run_simulation(
             drone.step(tick_s)
 
             slant, azimuth, elevation = distance_and_bearing(
-                node_lat, node_lon,
-                drone.lat, drone.lon, drone.alt_m,
+                node_lat,
+                node_lon,
+                drone.lat,
+                drone.lon,
+                drone.alt_m,
             )
 
             # Camera azimuth from boresight (assume boresight = North = 0°)
-            cam_az = azimuth - 0.0   # adjust if camera is rotated
+            cam_az = azimuth - 0.0  # adjust if camera is rotated
 
             # --- RF ---
             rf_det = drone.rf_emulator.sample(
@@ -295,19 +330,26 @@ async def run_simulation(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="ARTEMIS drone swarm simulator")
-    parser.add_argument("--scenario",    required=True,        help="Path to scenario YAML")
-    parser.add_argument("--node-config", default=None,         help="Path to node config YAML (optional)")
-    parser.add_argument("--broker",      default="127.0.0.1",  help="MQTT broker host")
-    parser.add_argument("--port",        type=int, default=1883)
-    parser.add_argument("--node-id",     default="sim-node-01")
-    parser.add_argument("--node-lat",    type=float, default=17.385)
-    parser.add_argument("--node-lon",    type=float, default=78.487)
-    parser.add_argument("--node-alt",    type=float, default=540.0)
-    parser.add_argument("--duration",    type=float, default=300.0, help="Simulation duration (s)")
-    parser.add_argument("--tick-hz",     type=float, default=50.0,  help="Physics tick rate (Hz)")
-    parser.add_argument("--log-level",   default="INFO")
+    parser.add_argument("--scenario", required=True, help="Path to scenario YAML")
+    parser.add_argument(
+        "--node-config", default=None, help="Path to node config YAML (optional)"
+    )
+    parser.add_argument("--broker", default="127.0.0.1", help="MQTT broker host")
+    parser.add_argument("--port", type=int, default=1883)
+    parser.add_argument("--node-id", default="sim-node-01")
+    parser.add_argument("--node-lat", type=float, default=17.385)
+    parser.add_argument("--node-lon", type=float, default=78.487)
+    parser.add_argument("--node-alt", type=float, default=540.0)
+    parser.add_argument(
+        "--duration", type=float, default=300.0, help="Simulation duration (s)"
+    )
+    parser.add_argument(
+        "--tick-hz", type=float, default=50.0, help="Physics tick rate (Hz)"
+    )
+    parser.add_argument("--log-level", default="INFO")
     return parser.parse_args()
 
 
@@ -319,6 +361,7 @@ async def _main_async() -> None:
     node_lat, node_lon, node_alt = args.node_lat, args.node_lon, args.node_alt
     if args.node_config:
         from artemis.core.config import NodeConfig
+
         cfg = NodeConfig.from_yaml(args.node_config)
         node_lat = cfg.location.lat
         node_lon = cfg.location.lon

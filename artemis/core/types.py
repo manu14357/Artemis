@@ -3,6 +3,7 @@ artemis/core/types.py
 Shared dataclasses used across all ARTEMIS subsystems.
 All field names intentionally match the YAML config parameter names.
 """
+
 from __future__ import annotations
 
 import time
@@ -16,6 +17,7 @@ from typing import Optional
 # Enumerations
 # ---------------------------------------------------------------------------
 
+
 class SensorLayer(str, Enum):
     RF = "rf"
     ACOUSTIC = "acoustic"
@@ -25,6 +27,7 @@ class SensorLayer(str, Enum):
 
 class ThreatTier(int, Enum):
     """1 = low concern → 5 = immediate lethal threat."""
+
     T1 = 1
     T2 = 2
     T3 = 3
@@ -33,41 +36,42 @@ class ThreatTier(int, Enum):
 
 
 class TrackStatus(str, Enum):
-    TENTATIVE = "tentative"   # Not enough hits to confirm
-    CONFIRMED = "confirmed"   # Confirmed, publishing to threat map
-    COASTED   = "coasted"     # No recent update, predicting only
-    DROPPED   = "dropped"     # Removed from track manager
+    TENTATIVE = "tentative"  # Not enough hits to confirm
+    CONFIRMED = "confirmed"  # Confirmed, publishing to threat map
+    COASTED = "coasted"  # No recent update, predicting only
+    DROPPED = "dropped"  # Removed from track manager
 
 
 class DroneType(str, Enum):
-    DJI_MAVIC   = "dji_mavic"
-    DJI_MINI    = "dji_mini"
-    AUTEL_EVO   = "autel_evo"
+    DJI_MAVIC = "dji_mavic"
+    DJI_MINI = "dji_mini"
+    AUTEL_EVO = "autel_evo"
     FPV_GENERIC = "fpv_generic"
-    UNKNOWN     = "unknown"
+    UNKNOWN = "unknown"
 
 
 # ---------------------------------------------------------------------------
 # Raw sensor detections (output of each perception driver / emulator)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class RFDetection:
-    frequency: int            # Hz
-    peak_power_db: float      # dBm
-    source: str               # node_id that generated this
+    frequency: int  # Hz
+    peak_power_db: float  # dBm
+    source: str  # node_id that generated this
     timestamp: float = field(default_factory=time.time)
     layer: SensorLayer = SensorLayer.RF
     # Optional fingerprint match
     drone_type: DroneType = DroneType.UNKNOWN
-    confidence: float = 0.0   # 0–1 fingerprint match confidence
-    bearing_deg: Optional[float] = None   # if directional antenna present
+    confidence: float = 0.0  # 0–1 fingerprint match confidence
+    bearing_deg: Optional[float] = None  # if directional antenna present
 
 
 @dataclass
 class AcousticDetection:
-    confidence: float         # 0–1 CNN classification confidence
-    bearing_deg: float        # degrees from north (TDOA)
+    confidence: float  # 0–1 CNN classification confidence
+    bearing_deg: float  # degrees from north (TDOA)
     source: str
     timestamp: float = field(default_factory=time.time)
     layer: SensorLayer = SensorLayer.ACOUSTIC
@@ -77,7 +81,7 @@ class AcousticDetection:
 
 @dataclass
 class RadarDetection:
-    range_m: float            # metres to target
+    range_m: float  # metres to target
     micro_doppler_spread: float  # std-dev of Doppler fan — proxy for rotor activity
     source: str
     timestamp: float = field(default_factory=time.time)
@@ -89,13 +93,13 @@ class RadarDetection:
 
 @dataclass
 class OpticalDetection:
-    bbox: tuple               # (x, y, w, h) in pixels
-    area: float               # pixels²
-    velocity: tuple           # (vx, vy) pixels/frame optical-flow vector
+    bbox: tuple  # (x, y, w, h) in pixels
+    area: float  # pixels²
+    velocity: tuple  # (vx, vy) pixels/frame optical-flow vector
     source: str
     timestamp: float = field(default_factory=time.time)
     layer: SensorLayer = SensorLayer.OPTICAL
-    confidence: float = 1.0   # presence confidence; background-sub is binary
+    confidence: float = 1.0  # presence confidence; background-sub is binary
     drone_type: DroneType = DroneType.UNKNOWN
     range_m: Optional[float] = None
 
@@ -107,6 +111,7 @@ Detection = RFDetection | AcousticDetection | RadarDetection | OpticalDetection
 # ---------------------------------------------------------------------------
 # Track — fused multi-sensor persistent object
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class Track:
@@ -150,6 +155,7 @@ class Track:
 # Threat — confirmed track enriched with tier + intent assessment
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class Threat:
     threat_id: str
@@ -171,9 +177,9 @@ class Threat:
     impact_x_m: Optional[float] = None
     impact_y_m: Optional[float] = None
 
-    sensor_layers: list = field(default_factory=list)   # e.g. ["rf", "acoustic"]
+    sensor_layers: list = field(default_factory=list)  # e.g. ["rf", "acoustic"]
     swarm_id: Optional[int] = None
-    swarm_size: int = 0   # 0 = solo threat
+    swarm_size: int = 0  # 0 = solo threat
 
     timestamp: float = field(default_factory=time.time)
     confidence: float = 0.0  # overall track quality score
@@ -186,8 +192,11 @@ class Threat:
             "drone_type": self.drone_type.value,
             "position": {"x": self.x_m, "y": self.y_m, "z": self.z_m},
             "velocity": {"vx": self.vx_mps, "vy": self.vy_mps, "vz": self.vz_mps},
-            "impact": {"x": self.impact_x_m, "y": self.impact_y_m}
-                       if self.impact_x_m is not None else None,
+            "impact": (
+                {"x": self.impact_x_m, "y": self.impact_y_m}
+                if self.impact_x_m is not None
+                else None
+            ),
             "sensor_layers": self.sensor_layers,
             "swarm_id": self.swarm_id,
             "swarm_size": self.swarm_size,
@@ -200,13 +209,14 @@ class Threat:
 # NodeStatus — heartbeat from each sensor node
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class NodeStatus:
     node_id: str
     lat: float
     lon: float
     alt_m: float
-    sensors_active: list    # e.g. ["rf", "acoustic"]
+    sensors_active: list  # e.g. ["rf", "acoustic"]
     last_heartbeat: float = field(default_factory=time.time)
     online: bool = True
     cpu_percent: float = 0.0

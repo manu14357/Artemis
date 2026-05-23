@@ -71,7 +71,9 @@ def _start_mosquitto() -> subprocess.Popen | None:
         log.info("mosquitto started pid=%d", proc.pid)
         return proc
     except FileNotFoundError:
-        log.warning("mosquitto not found in PATH — assuming broker is running externally")
+        log.warning(
+            "mosquitto not found in PATH — assuming broker is running externally"
+        )
         return None
 
 
@@ -158,7 +160,7 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         publisher=publisher,
         engagement_log=engagement_log,
         effector_manager=effector_manager,
-        rate_limit_per_min=getattr(cfg.api, 'rate_limit_per_min', 60),
+        rate_limit_per_min=getattr(cfg.api, "rate_limit_per_min", 60),
     )
     register_websocket(app, threat_map, ws_push_rate_hz=cfg.api.ws_push_rate_hz)
 
@@ -173,7 +175,11 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
 
     log.info(
         "hub ready  id=%s  api=http://%s:%d  broker=%s:%d",
-        cfg.id, cfg.host, cfg.api_port, cfg.mqtt.broker, cfg.mqtt.port,
+        cfg.id,
+        cfg.host,
+        cfg.api_port,
+        cfg.mqtt.broker,
+        cfg.mqtt.port,
     )
 
     try:

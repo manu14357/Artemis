@@ -11,7 +11,6 @@ Exit 0 = pass, Exit 1 = fail / device not found.
 from __future__ import annotations
 
 
-
 def main() -> int:
     try:
         import rtlsdr
@@ -37,6 +36,7 @@ def main() -> int:
             return 1
 
         import numpy as np
+
         power_db = 10 * np.log10(np.mean(np.abs(samples) ** 2) + 1e-12)
         print(
             f"PASS — RTL-SDR opened, tuned to 2437 MHz, "

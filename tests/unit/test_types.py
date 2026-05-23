@@ -2,6 +2,7 @@
 tests/unit/test_types.py
 Unit tests for artemis.core.types — serialisation round-trips and enum guards.
 """
+
 import time
 
 import pytest
@@ -35,15 +36,20 @@ class TestRFDetection:
         assert d.bearing_deg is None
 
     def test_to_dict_contains_layer(self):
-        d = RFDetection(frequency=915000000, peak_power_db=-55.0, source="n1", timestamp=1.0)
+        d = RFDetection(
+            frequency=915000000, peak_power_db=-55.0, source="n1", timestamp=1.0
+        )
         import dataclasses
+
         raw = dataclasses.asdict(d)
         assert raw["layer"] == "rf"
 
 
 class TestAcousticDetection:
     def test_layer_is_acoustic(self):
-        d = AcousticDetection(confidence=0.8, bearing_deg=45.0, source="n1", timestamp=1.0)
+        d = AcousticDetection(
+            confidence=0.8, bearing_deg=45.0, source="n1", timestamp=1.0
+        )
         assert d.layer == SensorLayer.ACOUSTIC
 
 
@@ -88,12 +94,17 @@ class TestTrack:
 class TestThreat:
     def test_to_dict_serialisable(self):
         import json
+
         threat = Threat(
             threat_id="thr-1",
             track_id="t-001",
             tier=ThreatTier.T3,
-            x_m=100.0, y_m=200.0, z_m=80.0,
-            vx_mps=5.0, vy_mps=3.0, vz_mps=0.0,
+            x_m=100.0,
+            y_m=200.0,
+            z_m=80.0,
+            vx_mps=5.0,
+            vy_mps=3.0,
+            vz_mps=0.0,
             sensor_layers=["rf", "radar"],
         )
         d = threat.to_dict()

@@ -32,6 +32,7 @@ Usage::
     for w in warnings:
         log.warning("[config] %s", w)
 """
+
 from __future__ import annotations
 
 import os
@@ -48,6 +49,7 @@ _TEMPLATE_LON = 78.4867
 # ---------------------------------------------------------------------------
 # Env-var helpers
 # ---------------------------------------------------------------------------
+
 
 def _env_str(key: str) -> str | None:
     return os.environ.get(key) or None
@@ -76,6 +78,7 @@ def _env_int(key: str) -> int | None:
 # ---------------------------------------------------------------------------
 # Env-var overrides
 # ---------------------------------------------------------------------------
+
 
 def apply_node_env_overrides(cfg: "NodeConfig") -> "NodeConfig":
     """Apply ARTEMIS_* environment variables onto a NodeConfig in-place."""
@@ -119,6 +122,7 @@ def apply_hub_env_overrides(cfg: "HubConfig") -> "HubConfig":
 # Validation
 # ---------------------------------------------------------------------------
 
+
 def validate_node_config(cfg: "NodeConfig", strict: bool = False) -> list[str]:
     """
     Validate a NodeConfig and return a list of warning strings.
@@ -134,7 +138,9 @@ def validate_node_config(cfg: "NodeConfig", strict: bool = False) -> list[str]:
     # GPS
     lat, lon = cfg.location.lat, cfg.location.lon
     if lat == 0.0 and lon == 0.0:
-        _warn("GPS coordinates are 0.0/0.0 — set node.location.lat/lon in config or via env")
+        _warn(
+            "GPS coordinates are 0.0/0.0 — set node.location.lat/lon in config or via env"
+        )
     if abs(lat - _TEMPLATE_LAT) < 0.001 and abs(lon - _TEMPLATE_LON) < 0.001:
         _warn(
             "GPS coordinates still at template defaults (Hyderabad). "
@@ -159,6 +165,7 @@ def validate_node_config(cfg: "NodeConfig", strict: bool = False) -> list[str]:
 
     # Radar serial port
     import os as _os
+
     port = cfg.sensors.radar.serial_port
     if cfg.sensors.radar.enabled and not _os.path.exists(port):
         warnings.append(

@@ -10,10 +10,10 @@ Exit 0 = pass / device absent (skip), Exit 1 = hard failure.
 from __future__ import annotations
 
 
-
 def _test_picamera() -> tuple[bool, str]:
     """Return (success, message). Raises ImportError if picamera2 absent."""
     from picamera2 import Picamera2  # noqa: PLC0415
+
     cam = Picamera2()
     config = cam.create_still_configuration(
         main={"size": (640, 480), "format": "RGB888"}
@@ -34,6 +34,7 @@ def _test_picamera() -> tuple[bool, str]:
 def _test_opencv() -> tuple[bool, str]:
     """Return (success, message). Raises ImportError if cv2 absent."""
     import cv2  # noqa: PLC0415
+
     for idx in range(3):
         cap = cv2.VideoCapture(idx)
         if not cap.isOpened():

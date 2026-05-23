@@ -2,6 +2,7 @@
 tests/unit/test_kalman.py
 Unit tests for the Extended Kalman Filter tracker (artemis.fusion.kalman).
 """
+
 import numpy as np
 import pytest
 
@@ -20,7 +21,7 @@ class TestEKFTracker:
         ekf = EKFTracker()
         ekf.init([0.0, 0.0, 100.0])
         # Manually set velocity
-        ekf.x[3] = 10.0   # vx = 10 m/s
+        ekf.x[3] = 10.0  # vx = 10 m/s
         ekf.predict(dt=1.0)
         # x should have advanced by 10 m
         assert ekf.position[0] == pytest.approx(10.0, abs=0.1)

@@ -7,6 +7,7 @@ The ThreatMap is the single source of truth for the API layer:
   - The WebSocket broadcaster calls get_snapshot() at ws_push_rate_hz.
   - The REST /threats endpoint also calls get_snapshot().
 """
+
 from __future__ import annotations
 
 import threading
@@ -30,6 +31,7 @@ log = get_logger("fusion.threat_map")
 # ---------------------------------------------------------------------------
 # Tier assignment heuristic
 # ---------------------------------------------------------------------------
+
 
 def _assign_tier(track: Track, swarm_size: int) -> ThreatTier:
     """
@@ -66,6 +68,7 @@ def _assign_tier(track: Track, swarm_size: int) -> ThreatTier:
 # ThreatMap
 # ---------------------------------------------------------------------------
 
+
 class ThreatMap:
     """
     Maintains a dict of {track_id: Threat} updated after every fusion cycle.
@@ -91,7 +94,8 @@ class ThreatMap:
         Runs DBSCAN to assign swarm IDs, then upserts / removes threats.
         """
         confirmed = [
-            t for t in tracks
+            t
+            for t in tracks
             if t.status in (TrackStatus.CONFIRMED, TrackStatus.COASTED)
         ]
 
@@ -102,7 +106,7 @@ class ThreatMap:
         new_map: dict[str, Threat] = {}
         for track in confirmed:
             sid = swarm_assignment.get(track.track_id)
-            sz  = sizes.get(sid, 0) if sid is not None else 0
+            sz = sizes.get(sid, 0) if sid is not None else 0
             tier = _assign_tier(track, sz)
 
             # Determine most confident drone type from last detections
@@ -117,7 +121,7 @@ class ThreatMap:
 
             # Simple trajectory extrapolation: 10-second impact point
             vx, vy, _ = track.velocity_mps
-            x, y, z   = track.position_m
+            x, y, z = track.position_m
 
             # Look up existing threat ID to keep stable across cycles
             existing = self._threats.get(track.track_id)

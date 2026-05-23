@@ -2,6 +2,7 @@
 tests/unit/test_predictor_agent.py
 Unit tests for PredictorAgent — CPA-based trajectory prediction.
 """
+
 import pytest
 
 from artemis.cognition.agents.predictor_agent import PredictorAgent
@@ -9,8 +10,12 @@ from artemis.core.types import Track, TrackStatus
 
 
 def _track(
-    x=0.0, y=0.0, z=50.0,
-    vx=0.0, vy=0.0, vz=0.0,
+    x=0.0,
+    y=0.0,
+    z=50.0,
+    vx=0.0,
+    vy=0.0,
+    vz=0.0,
     track_id="t-0001",
 ) -> Track:
     return Track(
@@ -64,7 +69,7 @@ class TestPredictorAgent:
 
     def test_receding_drone_low_probability(self):
         """Drone moving away has lower probability than approaching one."""
-        receding   = self.agent.predict(_track(x=400.0, y=0.0, z=0.0, vx=20.0))
+        receding = self.agent.predict(_track(x=400.0, y=0.0, z=0.0, vx=20.0))
         approaching = self.agent.predict(_track(x=400.0, y=0.0, z=0.0, vx=-20.0))
         assert receding.probability <= approaching.probability
 

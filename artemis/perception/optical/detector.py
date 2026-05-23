@@ -18,6 +18,7 @@ Calibration:
 Import guard:
     cv2 is optional; picamera2 is optional. Missing libs raise DriverUnavailableError.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -37,12 +38,14 @@ log = get_logger("perception.optical")
 # ---------------------------------------------------------------------------
 try:
     import cv2
+
     _HAS_CV2 = True
 except ImportError:
     _HAS_CV2 = False
 
 try:
     from picamera2 import Picamera2  # type: ignore[import]
+
     _HAS_PICAMERA2 = True
 except ImportError:
     _HAS_PICAMERA2 = False
@@ -55,6 +58,7 @@ class DriverUnavailableError(RuntimeError):
 # ---------------------------------------------------------------------------
 # Camera abstraction
 # ---------------------------------------------------------------------------
+
 
 class _PiCamera2Source:
     """Picamera2-backed frame source."""
@@ -87,8 +91,7 @@ class _PiCamera2Source:
 class _CV2Source:
     """OpenCV VideoCapture-backed frame source (USB cam, RTSP, etc.)."""
 
-    def __init__(self, resolution: tuple[int, int], fps: int,
-                 index: int = 0) -> None:
+    def __init__(self, resolution: tuple[int, int], fps: int, index: int = 0) -> None:
         self._idx = index
         self._resolution = resolution
         self._fps = fps
@@ -118,24 +121,28 @@ class _CV2Source:
 # Pinhole range estimation
 # ---------------------------------------------------------------------------
 
-_DRONE_REAL_SIZE_M = 0.35   # approximate frontal span for a typical drone
-_FOCAL_PX_DEFAULT = 554.0   # focal length (px) for 90° HFOV at 640 px wide
+_DRONE_REAL_SIZE_M = 0.35  # approximate frontal span for a typical drone
+_FOCAL_PX_DEFAULT = 554.0  # focal length (px) for 90° HFOV at 640 px wide
 
 
-def _estimate_range_m(blob_area_px: float, focal_px: float = _FOCAL_PX_DEFAULT,
-                      real_size_m: float = _DRONE_REAL_SIZE_M) -> float:
+def _estimate_range_m(
+    blob_area_px: float,
+    focal_px: float = _FOCAL_PX_DEFAULT,
+    real_size_m: float = _DRONE_REAL_SIZE_M,
+) -> float:
     """
     Pinhole range estimate using blob area.
     Apparent width w_px ≈ sqrt(area) for a roughly square blob.
     range = focal * real_size / w_px
     """
-    w_px = max(blob_area_px ** 0.5, 1.0)
+    w_px = max(blob_area_px**0.5, 1.0)
     return round(focal_px * real_size_m / w_px, 2)
 
 
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
+
 
 class OpticalDetector(PerceptionDriver):
     """
@@ -166,7 +173,7 @@ class OpticalDetector(PerceptionDriver):
         self._fgbg: Optional[object] = None  # cv2.BackgroundSubtractorMOG2
         # Lucas-Kanade tracking state
         self._prev_gray: Optional[np.ndarray] = None
-        self._prev_pts: Optional[np.ndarray] = None   # (N, 1, 2) float32
+        self._prev_pts: Optional[np.ndarray] = None  # (N, 1, 2) float32
         self._prev_blobs: list[tuple[float, float, float]] = []  # (cx, cy, area)
 
     async def start(self) -> None:
@@ -194,7 +201,9 @@ class OpticalDetector(PerceptionDriver):
         self.status = DriverStatus.RUNNING
         log.info(
             "OpticalDetector running node=%s res=%s fps=%d",
-            self.node_id, self._resolution, self._fps,
+            self.node_id,
+            self._resolution,
+            self._fps,
         )
 
         try:
@@ -224,7 +233,9 @@ class OpticalDetector(PerceptionDriver):
                 self._resolution, self._fps
             )
         else:
-            log.debug("OpticalDetector using cv2.VideoCapture index=%d", self._camera_index)
+            log.debug(
+                "OpticalDetector using cv2.VideoCapture index=%d", self._camera_index
+            )
             src = _CV2Source(self._resolution, self._fps, self._camera_index)
 
         src.open()
@@ -241,7 +252,7 @@ class OpticalDetector(PerceptionDriver):
         Returns a list of OpticalDetection (0 or more).
         """
         assert self._source is not None  # noqa: S101
-        assert self._fgbg is not None    # noqa: S101
+        assert self._fgbg is not None  # noqa: S101
 
         ret, frame = self._source.read()
         if not ret or frame is None:
@@ -291,7 +302,8 @@ class OpticalDetector(PerceptionDriver):
                 "maxLevel": 2,
                 "criteria": (
                     cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT,
-                    10, 0.03,
+                    10,
+                    0.03,
                 ),
             }
             prev_pts_arr = self._prev_pts
@@ -323,9 +335,9 @@ class OpticalDetector(PerceptionDriver):
         # Emit detections
         now = time.time()
         for i, (cx, cy, area) in enumerate(curr_blobs):
-            x_bb = int(cx - (area ** 0.5) / 2)
-            y_bb = int(cy - (area ** 0.5) / 2)
-            side = int(area ** 0.5)
+            x_bb = int(cx - (area**0.5) / 2)
+            y_bb = int(cy - (area**0.5) / 2)
+            side = int(area**0.5)
             bbox = (x_bb, y_bb, side, side)
             vx, vy = velocities[i] if i < len(velocities) else (0.0, 0.0)
             range_m = _estimate_range_m(area, self._focal_px)

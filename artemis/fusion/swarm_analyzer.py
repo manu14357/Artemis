@@ -5,6 +5,7 @@ DBSCAN-based swarm detection.
 Given a list of confirmed tracks, clusters them spatially.
 Clusters with >= min_samples members are labelled as swarms.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -39,7 +40,7 @@ def analyze_swarms(
     positions = np.array([[t.state[0], t.state[1], t.state[2]] for t in tracks])
 
     db = DBSCAN(eps=eps_m, min_samples=min_samples, metric="euclidean")
-    labels = db.fit_predict(positions)   # -1 = noise
+    labels = db.fit_predict(positions)  # -1 = noise
 
     result: dict[str, int | None] = {}
     for track, label in zip(tracks, labels):

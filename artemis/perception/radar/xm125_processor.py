@@ -18,6 +18,7 @@ Fix (per docs/artemis.md §2):
 Import guard:
     acconeer.exptool is optional. Missing lib raises DriverUnavailableError.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -37,6 +38,7 @@ log = get_logger("perception.radar")
 # ---------------------------------------------------------------------------
 try:
     import acconeer.exptool as et
+
     _HAS_ACCONEER = True
 except ImportError:
     _HAS_ACCONEER = False
@@ -67,6 +69,7 @@ _EXPECTED_SPREAD: dict[str, float] = {
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
+
 
 class XM125Processor(PerceptionDriver):
     """
@@ -106,7 +109,8 @@ class XM125Processor(PerceptionDriver):
             )
         log.info(
             "XM125Processor starting node=%s port=%s",
-            self.node_id, self._serial_port,
+            self.node_id,
+            self._serial_port,
         )
 
     async def stop(self) -> None:
@@ -128,7 +132,9 @@ class XM125Processor(PerceptionDriver):
         self.status = DriverStatus.RUNNING
         log.info(
             "XM125Processor running node=%s range=[%.1f, %.1f]m",
-            self.node_id, _MIN_RANGE_M, _MAX_RANGE_M,
+            self.node_id,
+            _MIN_RANGE_M,
+            _MAX_RANGE_M,
         )
 
         try:
@@ -200,7 +206,7 @@ class XM125Processor(PerceptionDriver):
         # data is a numpy array of complex IQ samples (num_points,)
         frame = np.array(data, dtype=np.complex128)
         amplitude = np.abs(frame)
-        power_db = 10.0 * np.log10(np.maximum(amplitude ** 2, 1e-30))
+        power_db = 10.0 * np.log10(np.maximum(amplitude**2, 1e-30))
 
         # Find strongest reflector
         peak_idx = int(np.argmax(amplitude))

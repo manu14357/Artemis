@@ -2,6 +2,7 @@
 tests/unit/test_health_endpoint.py
 Unit tests for GET /health and GET /metrics REST endpoints.
 """
+
 import time
 from unittest.mock import MagicMock
 
@@ -13,6 +14,7 @@ from artemis.api.rest import create_app
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_app(
     *,
@@ -45,6 +47,7 @@ def _make_app(
 # ---------------------------------------------------------------------------
 # GET /health tests
 # ---------------------------------------------------------------------------
+
 
 def test_health_ok_when_all_systems_nominal():
     """Returns status=ok when MQTT connected and fusion loop recent."""
@@ -80,7 +83,7 @@ def test_health_degraded_when_mqtt_disconnected():
 
 def test_health_degraded_when_fusion_stale():
     """Returns status=degraded when last fusion timestamp is older than 5 s."""
-    stale_ts = time.time() - 10.0   # 10 seconds ago
+    stale_ts = time.time() - 10.0  # 10 seconds ago
     client = _make_app(
         mqtt_connected=True,
         agg_running=True,
@@ -108,6 +111,7 @@ def test_health_no_publisher_does_not_flag_degraded():
 # GET /metrics tests
 # ---------------------------------------------------------------------------
 
+
 def test_metrics_endpoint_returns_200():
     """GET /metrics returns 200 with Prometheus text content type."""
     client = _make_app()
@@ -125,6 +129,7 @@ def test_metrics_endpoint_contains_artemis_prefix():
 # ---------------------------------------------------------------------------
 # GET /effectors tests
 # ---------------------------------------------------------------------------
+
 
 def test_effectors_returns_empty_list_when_no_manager():
     """GET /effectors returns [] when effector_manager is None."""

@@ -24,16 +24,16 @@ from artemis.core.types import OpticalDetection
 
 # Apparent size in pixels at reference distance
 _REF_PIXELS_AT_10M: dict[str, tuple[int, int]] = {
-    "DJI_Mini3":   (40, 20),
-    "DJI_Mavic3":  (50, 25),
-    "Autel_Evo2":  (55, 28),
+    "DJI_Mini3": (40, 20),
+    "DJI_Mavic3": (50, 25),
+    "Autel_Evo2": (55, 28),
     "FPV_Generic": (30, 15),
-    "unknown":     (40, 20),
+    "unknown": (40, 20),
 }
 
 _IMAGE_W = 640
 _IMAGE_H = 480
-_FOV_H_DEG = 90.0   # horizontal field of view
+_FOV_H_DEG = 90.0  # horizontal field of view
 _MAX_RANGE_M = 300.0
 
 
@@ -46,7 +46,7 @@ def _project(azimuth_deg: float, elevation_deg: float) -> tuple[float, float]:
     scale_x = _IMAGE_W / _FOV_H_DEG
     scale_y = scale_x  # square pixels
     px = _IMAGE_W / 2.0 + azimuth_deg * scale_x
-    py = _IMAGE_H / 2.0 - elevation_deg * scale_y   # elevation up = pixel up
+    py = _IMAGE_H / 2.0 - elevation_deg * scale_y  # elevation up = pixel up
     return px, py
 
 
@@ -63,18 +63,18 @@ def _apparent_size(model: str, distance_m: float) -> tuple[int, int]:
 
 @dataclass
 class OpticalEmulatorState:
-    drone_id:       str
-    model:          str
-    fps:            float = 30.0
-    min_blob_area:  int   = 80     # pixels²
-    _next_frame:    float = field(default=0.0, repr=False)
-    _prev_px:       Optional[tuple[float, float]] = field(default=None, repr=False)
-    _prev_ts:       float = field(default=0.0, repr=False)
+    drone_id: str
+    model: str
+    fps: float = 30.0
+    min_blob_area: int = 80  # pixels²
+    _next_frame: float = field(default=0.0, repr=False)
+    _prev_px: Optional[tuple[float, float]] = field(default=None, repr=False)
+    _prev_ts: float = field(default=0.0, repr=False)
 
     def sample(
         self,
-        distance_m:    float,
-        azimuth_deg:   float,   # degrees from camera boresight (0 = straight ahead)
+        distance_m: float,
+        azimuth_deg: float,  # degrees from camera boresight (0 = straight ahead)
         elevation_deg: float = 0.0,
     ) -> Optional[OpticalDetection]:
         now = time.monotonic()
@@ -121,7 +121,11 @@ class OpticalEmulatorState:
         self._prev_ts = now
 
         confidence = min(1.0, area / (200.0 + area))
-        range_m = distance_m + random.gauss(0, distance_m * 0.08) if distance_m < 150.0 else None
+        range_m = (
+            distance_m + random.gauss(0, distance_m * 0.08)
+            if distance_m < 150.0
+            else None
+        )
 
         return OpticalDetection(
             bbox=bbox,

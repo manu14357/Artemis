@@ -16,6 +16,7 @@ fusion cycle after CommandRouter.route().
 
 Timeout: 10 ms (hub_default.yaml cognition.scheduler_timeout_ms)
 """
+
 from __future__ import annotations
 
 import threading
@@ -31,18 +32,21 @@ log = get_logger("cognition.scheduler")
 # Result dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EngagementSchedule:
     """Output of SchedulerAgent.assign()."""
+
     # effector_id → Command
-    assignments:  dict[str, Command]
+    assignments: dict[str, Command]
     # Commands that could not be assigned (more threats than effectors)
-    unassigned:   list[Command]
+    unassigned: list[Command]
 
 
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
+
 
 class SchedulerAgent:
     """
@@ -82,9 +86,7 @@ class SchedulerAgent:
                 return EngagementSchedule(assignments={}, unassigned=[])
 
             # 2. Sort: highest score first, then closest range (lowest x²+y²)
-            actionable.sort(
-                key=lambda c: (-c.score, c.x_m ** 2 + c.y_m ** 2)
-            )
+            actionable.sort(key=lambda c: (-c.score, c.x_m**2 + c.y_m**2))
 
             # 3. Greedy 1:1 assignment
             available = list(effectors)  # local copy — we pop from it
@@ -97,13 +99,17 @@ class SchedulerAgent:
                     assignments[eid] = cmd
                     log.debug(
                         "assigned effector=%s → track=%s tier=%s score=%.3f",
-                        eid, cmd.track_id, cmd.tier.value, cmd.score,
+                        eid,
+                        cmd.track_id,
+                        cmd.tier.value,
+                        cmd.score,
                     )
                 else:
                     unassigned.append(cmd)
                     log.debug(
                         "unassigned track=%s (no effectors left) tier=%s",
-                        cmd.track_id, cmd.tier.value,
+                        cmd.track_id,
+                        cmd.tier.value,
                     )
 
             return EngagementSchedule(

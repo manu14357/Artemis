@@ -12,6 +12,7 @@ Topic schema (from hub_default.yaml):
   artemis/threats             ← hub publishes here
   artemis/commands/{id}       ← hub publishes engagement commands here
 """
+
 from __future__ import annotations
 
 import dataclasses
@@ -144,8 +145,11 @@ class MQTTPublisher:
     def _on_connect(self, client, userdata, flags, rc, properties=None) -> None:
         if rc == 0:
             self._connected = True
-            log.info("MQTT publisher connected broker=%s node_id=%s",
-                     self._broker, self.node_id)
+            log.info(
+                "MQTT publisher connected broker=%s node_id=%s",
+                self._broker,
+                self.node_id,
+            )
         else:
             log.error("MQTT publisher connect failed rc=%d", rc)
 
@@ -155,7 +159,7 @@ class MQTTPublisher:
             log.warning("MQTT publisher unexpected disconnect rc=%d", rc)
 
     def _on_publish(self, client, userdata, mid, properties=None) -> None:
-        pass   # no-op; retained for debug hook
+        pass  # no-op; retained for debug hook
 
     @property
     def connected(self) -> bool:

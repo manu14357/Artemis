@@ -2,6 +2,7 @@
 tests/unit/test_command_router.py
 Unit tests for artemis.cognition.agents.command_router.CommandRouter
 """
+
 from __future__ import annotations
 
 import pytest
@@ -18,9 +19,12 @@ from artemis.core.types import Track, TrackStatus
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_track(
-    x: float = 0.0, y: float = 0.0,
-    vx: float = 0.0, vy: float = 0.0,
+    x: float = 0.0,
+    y: float = 0.0,
+    vx: float = 0.0,
+    vy: float = 0.0,
     status: TrackStatus = TrackStatus.CONFIRMED,
 ) -> Track:
     t = Track(status=status)
@@ -31,6 +35,7 @@ def _make_track(
 # ---------------------------------------------------------------------------
 # tier_from_score
 # ---------------------------------------------------------------------------
+
 
 class TestTierFromScore:
     def test_below_track_is_ignore(self) -> None:
@@ -53,6 +58,7 @@ class TestTierFromScore:
 # ---------------------------------------------------------------------------
 # CommandRouter
 # ---------------------------------------------------------------------------
+
 
 class TestCommandRouter:
     def setup_method(self) -> None:
@@ -85,23 +91,23 @@ class TestCommandRouter:
         """Router should NOT re-emit when tier is unchanged."""
         t = _make_track()
         cmds1 = self.router.route([t], {t.track_id: 0.65})
-        cmds2 = self.router.route([t], {t.track_id: 0.67})   # same tier
+        cmds2 = self.router.route([t], {t.track_id: 0.67})  # same tier
         assert len(cmds1) == 1
-        assert len(cmds2) == 0   # tier unchanged — no emission
+        assert len(cmds2) == 0  # tier unchanged — no emission
 
     def test_tier_escalation_emits_new_command(self) -> None:
         """Track escalating from SOFT to HARD should emit one more command."""
         t = _make_track()
-        self.router.route([t], {t.track_id: 0.65})   # ENGAGE_SOFT
-        cmds = self.router.route([t], {t.track_id: 0.85})   # escalate to HARD
+        self.router.route([t], {t.track_id: 0.65})  # ENGAGE_SOFT
+        cmds = self.router.route([t], {t.track_id: 0.85})  # escalate to HARD
         assert len(cmds) == 1
         assert cmds[0].tier == EngagementTier.ENGAGE_HARD
 
     def test_tier_de_escalation_emits_command(self) -> None:
         """Score dropping from HARD to SOFT should emit a new SOFT command."""
         t = _make_track()
-        self.router.route([t], {t.track_id: 0.90})   # ENGAGE_HARD
-        cmds = self.router.route([t], {t.track_id: 0.65})   # de-escalate
+        self.router.route([t], {t.track_id: 0.90})  # ENGAGE_HARD
+        cmds = self.router.route([t], {t.track_id: 0.65})  # de-escalate
         assert len(cmds) == 1
         assert cmds[0].tier == EngagementTier.ENGAGE_SOFT
 

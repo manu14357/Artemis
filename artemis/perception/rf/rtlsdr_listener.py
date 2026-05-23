@@ -15,6 +15,7 @@ Import guard:
     pyrtlsdr is optional; if not installed the driver raises DriverUnavailableError
     so the node daemon can skip it gracefully without crashing.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -35,6 +36,7 @@ log = get_logger("perception.rf")
 # ---------------------------------------------------------------------------
 try:
     from rtlsdr import RtlSdr
+
     _HAS_RTLSDR = True
 except ImportError:
     _HAS_RTLSDR = False
@@ -60,8 +62,9 @@ def _fspl_db(distance_m: float, frequency_hz: float) -> float:
     return 10 * math.log10(max((4 * math.pi * distance_m / wl) ** 2, 1e-30))
 
 
-def _power_to_range_m(power_dbm: float, frequency_hz: float,
-                      tx_power_dbm: float = 20.0) -> Optional[float]:
+def _power_to_range_m(
+    power_dbm: float, frequency_hz: float, tx_power_dbm: float = 20.0
+) -> Optional[float]:
     """
     Invert FSPL to estimate range from received power.
     Returns None if power is below noise floor.
@@ -82,10 +85,10 @@ def _power_to_range_m(power_dbm: float, frequency_hz: float,
 # Known burst intervals (seconds) for each drone model
 _BURST_INTERVAL_MAP: dict[str, tuple[float, DroneType]] = {
     # (expected burst interval, drone type)
-    "dji_ocusync":  (0.020, DroneType.DJI_MAVIC),
-    "dji_mini":     (0.020, DroneType.DJI_MINI),
-    "autel":        (0.033, DroneType.AUTEL_EVO),
-    "fpv_generic":  (0.008, DroneType.FPV_GENERIC),
+    "dji_ocusync": (0.020, DroneType.DJI_MAVIC),
+    "dji_mini": (0.020, DroneType.DJI_MINI),
+    "autel": (0.033, DroneType.AUTEL_EVO),
+    "fpv_generic": (0.008, DroneType.FPV_GENERIC),
 }
 
 _FREQ_BANDS: dict[str, list[tuple[int, int]]] = {
@@ -107,6 +110,7 @@ def _classify_frequency(freq_hz: int) -> str:
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
+
 
 class RTLSDRListener(PerceptionDriver):
     """
@@ -136,7 +140,7 @@ class RTLSDRListener(PerceptionDriver):
         self._threshold_db = threshold_db
         self._sample_rate = sample_rate
         self._bearing_deg = bearing_deg  # fixed mount bearing (None if omni)
-        self._sdr: Optional["RtlSdr"] = None   # type: ignore[name-defined]
+        self._sdr: Optional["RtlSdr"] = None  # type: ignore[name-defined]
         # Per-frequency last-detection timestamp for burst interval fingerprinting
         self._last_detect_ts: dict[int, float] = {}
 
@@ -163,9 +167,7 @@ class RTLSDRListener(PerceptionDriver):
         Yields RFDetection when peak power exceeds threshold_db.
         """
         if not _HAS_RTLSDR:
-            raise DriverUnavailableError(
-                "pyrtlsdr is not installed. Cannot stream."
-            )
+            raise DriverUnavailableError("pyrtlsdr is not installed. Cannot stream.")
 
         # Open SDR on main thread before entering async loop
         self._sdr = await asyncio.to_thread(self._open_sdr)
@@ -179,9 +181,7 @@ class RTLSDRListener(PerceptionDriver):
         try:
             while True:
                 for freq in self._frequencies:
-                    det = await asyncio.to_thread(
-                        self._scan_frequency, freq
-                    )
+                    det = await asyncio.to_thread(self._scan_frequency, freq)
                     if det is not None:
                         yield det
                 # Brief yield so other coroutines can run between scan cycles
@@ -223,7 +223,7 @@ class RTLSDRListener(PerceptionDriver):
         window = np.hanning(len(samples))
         fft_mag = np.abs(np.fft.fft(samples * window))
         # Avoid log(0) — guard with max(x, 1e-30)
-        power_db = 10.0 * np.log10(np.maximum(fft_mag ** 2 / len(samples), 1e-30))
+        power_db = 10.0 * np.log10(np.maximum(fft_mag**2 / len(samples), 1e-30))
 
         peak_db = float(np.max(power_db))
         if peak_db < self._threshold_db:

@@ -2,6 +2,7 @@
 tests/unit/test_swarm_analyzer.py
 Unit tests for DBSCAN-based swarm detection.
 """
+
 from artemis.core.types import Track, TrackStatus
 from artemis.fusion.swarm_analyzer import analyze_swarms, swarm_sizes
 
@@ -30,7 +31,7 @@ class TestAnalyzeSwarms:
             _track("t1", 0, 0),
             _track("t2", 10, 5),
             _track("t3", -5, 8),
-            _track("isolated", 5000, 5000),   # far away
+            _track("isolated", 5000, 5000),  # far away
         ]
         result = analyze_swarms(tracks, eps_m=50.0, min_samples=2)
         assert result["isolated"] is None

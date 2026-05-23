@@ -6,6 +6,7 @@ Given a set of detections (each with an estimated Cartesian position) and
 a set of active tracks, computes the optimal 1-to-1 assignment that minimises
 total Euclidean distance, subject to a maximum allowable gate distance.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -68,6 +69,6 @@ def assign(
             matched_trk.add(ci)
 
     unmatched_detections = [i for i in range(n_det) if i not in matched_det]
-    unmatched_tracks     = [j for j in range(n_trk) if j not in matched_trk]
+    unmatched_tracks = [j for j in range(n_trk) if j not in matched_trk]
 
     return matches, unmatched_detections, unmatched_tracks

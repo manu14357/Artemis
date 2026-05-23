@@ -5,6 +5,7 @@ Integration tests for the WebSocket /ws threat-feed endpoint.
 Uses FastAPI's built-in WebSocket test client (starlette TestClient).
 No real MQTT broker is required.
 """
+
 from __future__ import annotations
 
 import time
@@ -20,6 +21,7 @@ from artemis.api.websocket import register_websocket, ConnectionManager
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_threat_snapshot() -> list[dict]:
     return [
@@ -63,6 +65,7 @@ def ws_client() -> TestClient:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestWebSocketFeed:
     def test_ws_connect_and_receive_json(self, ws_client: TestClient) -> None:

@@ -2,6 +2,7 @@
 tests/unit/test_track_manager.py
 Unit tests for TrackManager lifecycle (TENTATIVE → CONFIRMED → COASTED → DROPPED).
 """
+
 import time
 
 
@@ -12,6 +13,7 @@ from artemis.fusion.track_manager import TrackManager
 def _radar(x: float, y: float, z: float, source: str = "n1") -> RadarDetection:
     """Helper: radar detection at approx Cartesian position (via range/bearing)."""
     import math
+
     range_m = math.sqrt(x**2 + y**2)
     bearing_deg = math.degrees(math.atan2(x, y)) % 360.0
     return RadarDetection(

@@ -6,19 +6,21 @@ These tests exercise validate_ws_token() which is used by the /ws endpoint
 to check the ?token= query parameter.  The HTTP dependency require_auth is
 covered in test_auth.py.
 """
+
 import importlib
 import os
 from unittest.mock import patch
-
 
 
 # ---------------------------------------------------------------------------
 # Reload helper
 # ---------------------------------------------------------------------------
 
+
 def _reload_with_keys(keys: str | None):
     """Reload auth module with a specific ARTEMIS_API_KEYS value."""
     import artemis.api.auth as auth_mod
+
     clean_env = {k: v for k, v in os.environ.items() if k != "ARTEMIS_API_KEYS"}
     if keys is not None:
         clean_env["ARTEMIS_API_KEYS"] = keys
@@ -30,6 +32,7 @@ def _reload_with_keys(keys: str | None):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_ws_token_open_mode_no_env():
     """In open mode any token (even None) is accepted."""

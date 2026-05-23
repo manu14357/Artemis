@@ -65,6 +65,7 @@ def _fmt(result: CheckResult) -> str:
 
 # ── Individual checks ─────────────────────────────────────────────────────────
 
+
 def check_python() -> CheckResult:
     vi = sys.version_info
     ver = f"{vi.major}.{vi.minor}.{vi.micro}"
@@ -88,6 +89,7 @@ def check_config(config_path: str) -> CheckResult:
         return CheckResult("Config file", Status.FAIL, f"Not found: {p}")
     try:
         import yaml
+
         with p.open() as fh:
             data = yaml.safe_load(fh)
         if not isinstance(data, dict):
@@ -110,6 +112,7 @@ def check_rtlsdr(skip_hardware: bool) -> CheckResult:
         return CheckResult("RTL-SDR dongle", Status.SKIP, "--skip-hardware")
     try:
         import rtlsdr
+
         sdr = rtlsdr.RtlSdr()
         sdr.close()
         return CheckResult("RTL-SDR dongle", Status.PASS, "opened and closed")
@@ -124,9 +127,12 @@ def check_audio(skip_hardware: bool) -> CheckResult:
         return CheckResult("Audio input device", Status.SKIP, "--skip-hardware")
     try:
         import sounddevice as sd
+
         devices = [d for d in sd.query_devices() if d["max_input_channels"] > 0]
         if not devices:
-            return CheckResult("Audio input device", Status.WARN, "No input devices found")
+            return CheckResult(
+                "Audio input device", Status.WARN, "No input devices found"
+            )
         names = ", ".join(d["name"] for d in devices[:3])
         return CheckResult("Audio input device", Status.PASS, names)
     except Exception as exc:
@@ -147,19 +153,25 @@ def check_camera(skip_hardware: bool) -> CheckResult:
         return CheckResult("Camera", Status.SKIP, "--skip-hardware")
     try:
         import picamera2  # noqa: F401
+
         return CheckResult("Camera", Status.PASS, "picamera2 available")
     except ImportError:
         pass
     try:
         import cv2
+
         cap = cv2.VideoCapture(0)
         ok = cap.isOpened()
         cap.release()
         if ok:
             return CheckResult("Camera", Status.PASS, "OpenCV VideoCapture(0)")
-        return CheckResult("Camera", Status.WARN, "OpenCV found but VideoCapture(0) failed")
+        return CheckResult(
+            "Camera", Status.WARN, "OpenCV found but VideoCapture(0) failed"
+        )
     except ImportError:
-        return CheckResult("Camera", Status.WARN, "Neither picamera2 nor OpenCV available")
+        return CheckResult(
+            "Camera", Status.WARN, "Neither picamera2 nor OpenCV available"
+        )
 
 
 def check_acconeer(skip_hardware: bool) -> CheckResult:
@@ -167,6 +179,7 @@ def check_acconeer(skip_hardware: bool) -> CheckResult:
         return CheckResult("Acconeer exptool", Status.SKIP, "--skip-hardware")
     try:
         import acconeer.exptool  # noqa: F401
+
         return CheckResult("Acconeer exptool", Status.PASS)
     except ImportError as exc:
         return CheckResult("Acconeer exptool", Status.FAIL, str(exc))
@@ -174,13 +187,19 @@ def check_acconeer(skip_hardware: bool) -> CheckResult:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="ARTEMIS node install verifier")
-    parser.add_argument("--skip-hardware", action="store_true",
-                        help="Skip USB / serial / camera hardware checks")
-    parser.add_argument("--config",
-                        default="node/config/node_default.yaml",
-                        help="Path to node config YAML")
+    parser.add_argument(
+        "--skip-hardware",
+        action="store_true",
+        help="Skip USB / serial / camera hardware checks",
+    )
+    parser.add_argument(
+        "--config",
+        default="node/config/node_default.yaml",
+        help="Path to node config YAML",
+    )
     parser.add_argument("--mqtt-host", default="127.0.0.1")
     parser.add_argument("--mqtt-port", type=int, default=1883)
     args = parser.parse_args()
@@ -212,10 +231,10 @@ def main() -> int:
     for result in checks:
         print(_fmt(result))
 
-    n_pass  = sum(1 for r in checks if r.status == Status.PASS)
-    n_fail  = sum(1 for r in checks if r.status == Status.FAIL)
-    n_warn  = sum(1 for r in checks if r.status == Status.WARN)
-    n_skip  = sum(1 for r in checks if r.status == Status.SKIP)
+    n_pass = sum(1 for r in checks if r.status == Status.PASS)
+    n_fail = sum(1 for r in checks if r.status == Status.FAIL)
+    n_warn = sum(1 for r in checks if r.status == Status.WARN)
+    n_skip = sum(1 for r in checks if r.status == Status.SKIP)
 
     print("=" * 46)
     print(f"PASS={n_pass}  WARN={n_warn}  SKIP={n_skip}  FAIL={n_fail}")

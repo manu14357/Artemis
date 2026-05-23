@@ -14,6 +14,7 @@ Design goals
 - Portable: plain NDJSON so ``jq``, ``tail -f``, and simple Python reads
   all work without any special tooling.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,32 +34,35 @@ _DEFAULT_PATH = "logs/engagements.ndjson"
 # Engagement record
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EngagementRecord:
     """One dispatched engagement command (JSON-serialisable)."""
-    track_id:    str
+
+    track_id: str
     effector_id: str
-    tier:        str    # EngagementTier.value — kept as string for easy JSON
-    score:       float
-    x_m:         float = 0.0
-    y_m:         float = 0.0
-    z_m:         float = 0.0
-    timestamp:   float = field(default_factory=time.time)
+    tier: str  # EngagementTier.value — kept as string for easy JSON
+    score: float
+    x_m: float = 0.0
+    y_m: float = 0.0
+    z_m: float = 0.0
+    timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
-            "track_id":    self.track_id,
+            "track_id": self.track_id,
             "effector_id": self.effector_id,
-            "tier":        self.tier,
-            "score":       round(self.score, 4),
-            "position":    {"x": self.x_m, "y": self.y_m, "z": self.z_m},
-            "timestamp":   self.timestamp,
+            "tier": self.tier,
+            "score": round(self.score, 4),
+            "position": {"x": self.x_m, "y": self.y_m, "z": self.z_m},
+            "timestamp": self.timestamp,
         }
 
 
 # ---------------------------------------------------------------------------
 # Log
 # ---------------------------------------------------------------------------
+
 
 class EngagementLog:
     """

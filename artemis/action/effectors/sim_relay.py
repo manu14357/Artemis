@@ -19,6 +19,7 @@ Usage (async / hub integration):
     relay = SimRelay(effector_id="sim-relay-01", broker=cfg.mqtt.broker)
     asyncio.get_event_loop().run_in_executor(None, relay.start)
 """
+
 from __future__ import annotations
 
 import json
@@ -39,23 +40,25 @@ log = get_logger("action.sim_relay")
 # Engagement record
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EngagementRecord:
     """Immutable record of one engagement command that was received + acted on."""
+
     effector_id: str
-    track_id:    str
-    tier:        EngagementTier
-    score:       float
-    position:    dict
+    track_id: str
+    tier: EngagementTier
+    score: float
+    position: dict
     received_at: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {
             "effector_id": self.effector_id,
-            "track_id":    self.track_id,
-            "tier":        self.tier.value,
-            "score":       self.score,
-            "position":    self.position,
+            "track_id": self.track_id,
+            "tier": self.tier.value,
+            "score": self.score,
+            "position": self.position,
             "received_at": self.received_at,
         }
 
@@ -63,6 +66,7 @@ class EngagementRecord:
 # ---------------------------------------------------------------------------
 # SimRelay effector
 # ---------------------------------------------------------------------------
+
 
 class SimRelay:
     """
@@ -116,9 +120,16 @@ class SimRelay:
         """Connect to broker and start processing loop (blocks until stop())."""
         log.info(
             "SimRelay %s connecting to %s:%d topic=%s",
-            self.effector_id, self._broker, self._port, self._topic,
+            self.effector_id,
+            self._broker,
+            self._port,
+            self._topic,
         )
-        self._client.connect(self._broker, self._port, self._keepalive if hasattr(self, "_keepalive") else 60)
+        self._client.connect(
+            self._broker,
+            self._port,
+            self._keepalive if hasattr(self, "_keepalive") else 60,
+        )
         self._client.loop_start()
 
         # Block until stop() is called
@@ -136,21 +147,32 @@ class SimRelay:
     # ------------------------------------------------------------------
 
     def _on_connect(
-        self, client: mqtt.Client, userdata: object, flags: dict,
-        reason_code: object, properties: object = None,
+        self,
+        client: mqtt.Client,
+        userdata: object,
+        flags: dict,
+        reason_code: object,
+        properties: object = None,
     ) -> None:
         log.info("SimRelay %s connected to broker", self.effector_id)
         client.subscribe(self._topic, qos=1)
         log.info("SimRelay subscribed to %s", self._topic)
 
     def _on_disconnect(
-        self, client: mqtt.Client, userdata: object,
-        disconnect_flags: object, reason_code: object, properties: object = None,
+        self,
+        client: mqtt.Client,
+        userdata: object,
+        disconnect_flags: object,
+        reason_code: object,
+        properties: object = None,
     ) -> None:
         log.warning("SimRelay %s disconnected (rc=%s)", self.effector_id, reason_code)
 
     def _on_message(
-        self, client: mqtt.Client, userdata: object, msg: mqtt.MQTTMessage,
+        self,
+        client: mqtt.Client,
+        userdata: object,
+        msg: mqtt.MQTTMessage,
     ) -> None:
         """Handle an incoming command message."""
         try:
@@ -195,16 +217,20 @@ class SimRelay:
         if record.tier == EngagementTier.ENGAGE_HARD:
             log.warning(
                 "[SIM] HARD ENGAGE track=%s score=%.3f pos=%s",
-                record.track_id, record.score, record.position,
+                record.track_id,
+                record.score,
+                record.position,
             )
         elif record.tier == EngagementTier.ENGAGE_SOFT:
             log.info(
                 "[SIM] SOFT ENGAGE (GPS spoof / audio) track=%s score=%.3f",
-                record.track_id, record.score,
+                record.track_id,
+                record.score,
             )
         elif record.tier == EngagementTier.TRACK_ONLY:
             log.info(
                 "[SIM] TRACK ONLY track=%s score=%.3f",
-                record.track_id, record.score,
+                record.track_id,
+                record.score,
             )
         # IGNORE tier is filtered upstream — should not reach here

@@ -42,6 +42,7 @@ except ImportError as exc:
 # Swarm builder
 # ---------------------------------------------------------------------------
 
+
 def _make_tracks(n: int) -> list[Track]:
     tracks = []
     for i in range(n):
@@ -79,6 +80,7 @@ def _make_node_bearings(n_nodes: int = 4) -> dict[str, tuple[float, float, float
 # ---------------------------------------------------------------------------
 # Bench runner
 # ---------------------------------------------------------------------------
+
 
 class BenchResult:
     def __init__(self, label: str, n_items: int, latencies_ms: list[float]) -> None:
@@ -137,6 +139,7 @@ def _measure(fn, n_warmup: int, n_runs: int) -> list[float]:
 # Individual stage benchmarks
 # ---------------------------------------------------------------------------
 
+
 def bench_triangulation(n_nodes: int, n_warmup: int, n_runs: int) -> BenchResult:
     bearings = _make_node_bearings(n_nodes)
 
@@ -187,16 +190,32 @@ def bench_full_pipeline(n_drones: int, n_warmup: int, n_runs: int) -> BenchResul
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="ARTEMIS pipeline benchmark")
-    parser.add_argument("--drones", type=int, default=100,
-                        help="Number of simulated drones (default: 100)")
-    parser.add_argument("--runs", type=int, default=100,
-                        help="Number of timed iterations (default: 100)")
-    parser.add_argument("--warmup", type=int, default=20,
-                        help="Warm-up iterations before timing (default: 20)")
-    parser.add_argument("--json", action="store_true",
-                        help="Output results as JSON instead of human-readable table")
+    parser.add_argument(
+        "--drones",
+        type=int,
+        default=100,
+        help="Number of simulated drones (default: 100)",
+    )
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=100,
+        help="Number of timed iterations (default: 100)",
+    )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=20,
+        help="Warm-up iterations before timing (default: 20)",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON instead of human-readable table",
+    )
     args = parser.parse_args(argv)
 
     n_drones = args.drones

@@ -14,6 +14,7 @@ last routing cycle.  This prevents flooding the effector topic.
 Thread safety: this class is stateful (stores last tier per track_id).
 Use one instance per hub process; it is not safe to share across threads.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -30,9 +31,10 @@ log = get_logger("cognition.command_router")
 # Command types
 # ---------------------------------------------------------------------------
 
+
 class EngagementTier(str, Enum):
-    IGNORE      = "ignore"
-    TRACK_ONLY  = "track_only"
+    IGNORE = "ignore"
+    TRACK_ONLY = "track_only"
     ENGAGE_SOFT = "engage_soft"
     ENGAGE_HARD = "engage_hard"
 
@@ -40,20 +42,21 @@ class EngagementTier(str, Enum):
 @dataclass
 class Command:
     """An engagement command emitted by the router."""
-    track_id:   str
-    tier:       EngagementTier
-    score:      float
-    x_m:        float = 0.0
-    y_m:        float = 0.0
-    z_m:        float = 0.0
-    timestamp:  float = field(default_factory=__import__("time").time)
+
+    track_id: str
+    tier: EngagementTier
+    score: float
+    x_m: float = 0.0
+    y_m: float = 0.0
+    z_m: float = 0.0
+    timestamp: float = field(default_factory=__import__("time").time)
 
     def to_dict(self) -> dict:
         return {
-            "track_id":  self.track_id,
-            "tier":      self.tier.value,
-            "score":     round(self.score, 4),
-            "position":  {"x": self.x_m, "y": self.y_m, "z": self.z_m},
+            "track_id": self.track_id,
+            "tier": self.tier.value,
+            "score": round(self.score, 4),
+            "position": {"x": self.x_m, "y": self.y_m, "z": self.z_m},
             "timestamp": self.timestamp,
         }
 
@@ -80,6 +83,7 @@ def _tier_from_score(score: float) -> EngagementTier:
 # ---------------------------------------------------------------------------
 # Router
 # ---------------------------------------------------------------------------
+
 
 class CommandRouter:
     """
@@ -144,7 +148,12 @@ class CommandRouter:
             commands.append(cmd)
             log.info(
                 "Command emitted track=%s tier=%s score=%.3f pos=(%.1f, %.1f, %.1f)",
-                tid, tier.value, score, x, y, z,
+                tid,
+                tier.value,
+                score,
+                x,
+                y,
+                z,
             )
 
         # Clean up state for dropped tracks

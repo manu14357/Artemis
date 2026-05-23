@@ -10,6 +10,7 @@ Subscribed topics (hub side):
   artemis/nodes/+/optical
   artemis/nodes/+/status
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,10 +35,10 @@ log = get_logger("mesh.subscriber")
 
 # Map sensor layer name → deserialiser
 _LAYER_MAP = {
-    "rf":       SensorLayer.RF,
+    "rf": SensorLayer.RF,
     "acoustic": SensorLayer.ACOUSTIC,
-    "radar":    SensorLayer.RADAR,
-    "optical":  SensorLayer.OPTICAL,
+    "radar": SensorLayer.RADAR,
+    "optical": SensorLayer.OPTICAL,
 }
 
 
@@ -161,12 +162,12 @@ class MQTTSubscriber:
         if username:
             self._client.username_pw_set(username, password)
 
-        self._client.on_connect    = self._on_connect
+        self._client.on_connect = self._on_connect
         self._client.on_disconnect = self._on_disconnect
-        self._client.on_message    = self._on_message
+        self._client.on_message = self._on_message
 
-        self._broker    = broker
-        self._port      = port
+        self._broker = broker
+        self._port = port
         self._keepalive = keepalive
         self._connected = False
 
@@ -202,13 +203,17 @@ class MQTTSubscriber:
             client.subscribe(topic, qos=0)
             log.debug("subscribed topic=%s", topic)
 
-    def _on_disconnect(self, client, userdata, disconnect_flags, reason_code=None, properties=None) -> None:
+    def _on_disconnect(
+        self, client, userdata, disconnect_flags, reason_code=None, properties=None
+    ) -> None:
         """paho-mqtt v2 + MQTTv5 signature: 3rd arg is DisconnectFlags, not rc."""
         self._connected = False
         # reason_code is a ReasonCode object; rc == 0 means normal disconnect.
-        rc = getattr(reason_code, 'value', reason_code)
+        rc = getattr(reason_code, "value", reason_code)
         if rc is not None and rc != 0:
-            log.warning("MQTT subscriber unexpected disconnect reason_code=%s", reason_code)
+            log.warning(
+                "MQTT subscriber unexpected disconnect reason_code=%s", reason_code
+            )
 
     def _on_message(self, client, userdata, msg: mqtt.MQTTMessage) -> None:
         """Parse topic, deserialise payload, push to EventBus / queue."""
@@ -219,7 +224,7 @@ class MQTTSubscriber:
             return
 
         node_id = parts[2]
-        layer   = parts[3]
+        layer = parts[3]
 
         if layer == "status":
             det = _deserialise_status(node_id, msg.payload)
@@ -233,11 +238,15 @@ class MQTTSubscriber:
 
         # Thread-safe delivery to asyncio world
         if self._loop and self._queue is not None:
+
             def _safe_put(q=self._queue, item=det):
                 try:
                     q.put_nowait(item)
                 except asyncio.QueueFull:
-                    log.warning("detection queue full; dropping detection from node=%s", node_id)
+                    log.warning(
+                        "detection queue full; dropping detection from node=%s", node_id
+                    )
+
             self._loop.call_soon_threadsafe(_safe_put)
 
         if self._bus and self._loop:

@@ -13,6 +13,7 @@ from artemis.api.metrics import get_metrics
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _text(m):
     """Return metrics text output as a string."""
     raw = m.generate_text()
@@ -22,6 +23,7 @@ def _text(m):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_singleton_identity():
     """get_metrics() always returns the same instance."""
@@ -72,7 +74,7 @@ def test_fusion_latency_timer_records_observation():
     m = get_metrics()
     count_before = m.fusion_latency._sum.get()
     with m.fusion_latency_timer():
-        pass   # near-zero duration
+        pass  # near-zero duration
     count_after = m.fusion_latency._sum.get()
     # sum should have increased (even tiny non-negative value)
     assert count_after >= count_before

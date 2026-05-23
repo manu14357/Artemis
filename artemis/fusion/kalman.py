@@ -9,6 +9,7 @@ Uses a constant-velocity motion model (linear, so technically a plain KF,
 but the class is named EKFTracker for future extensibility with nonlinear
 sensor models such as range-bearing measurements).
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,7 +32,7 @@ class EKFTracker:
     """
 
     DIM_STATE = 6
-    DIM_MEAS  = 3
+    DIM_MEAS = 3
 
     def __init__(
         self,
@@ -44,8 +45,8 @@ class EKFTracker:
         self._r = measurement_noise_r
 
         # State estimate and covariance
-        self.x = np.zeros(self.DIM_STATE)           # [x, y, z, vx, vy, vz]
-        self.P = np.eye(self.DIM_STATE) * 100.0     # Large initial uncertainty
+        self.x = np.zeros(self.DIM_STATE)  # [x, y, z, vx, vy, vz]
+        self.P = np.eye(self.DIM_STATE) * 100.0  # Large initial uncertainty
 
         # State transition matrix (constant velocity)
         self.F = self._make_F(dt)
@@ -139,15 +140,20 @@ class EKFTracker:
     @staticmethod
     def _make_Q(dt: float, q: float) -> np.ndarray:
         """Discrete Wiener process noise for constant-velocity model."""
-        dt2 = dt ** 2
-        dt3 = dt ** 3
-        dt4 = dt ** 4
-        Q = np.array([
-            [dt4 / 4, 0,       0,       dt3 / 2, 0,       0      ],
-            [0,       dt4 / 4, 0,       0,       dt3 / 2, 0      ],
-            [0,       0,       dt4 / 4, 0,       0,       dt3 / 2],
-            [dt3 / 2, 0,       0,       dt2,     0,       0      ],
-            [0,       dt3 / 2, 0,       0,       dt2,     0      ],
-            [0,       0,       dt3 / 2, 0,       0,       dt2    ],
-        ]) * q
+        dt2 = dt**2
+        dt3 = dt**3
+        dt4 = dt**4
+        Q = (
+            np.array(
+                [
+                    [dt4 / 4, 0, 0, dt3 / 2, 0, 0],
+                    [0, dt4 / 4, 0, 0, dt3 / 2, 0],
+                    [0, 0, dt4 / 4, 0, 0, dt3 / 2],
+                    [dt3 / 2, 0, 0, dt2, 0, 0],
+                    [0, dt3 / 2, 0, 0, dt2, 0],
+                    [0, 0, dt3 / 2, 0, 0, dt2],
+                ]
+            )
+            * q
+        )
         return Q

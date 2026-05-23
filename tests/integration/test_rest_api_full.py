@@ -8,6 +8,7 @@ Extends the basic smoke tests in test_hub_integration.py with:
   - All endpoint contracts
   - Invalid input handling
 """
+
 from __future__ import annotations
 
 import importlib
@@ -24,6 +25,7 @@ from artemis.api.rest import create_app
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 def _make_threat_map() -> MagicMock:
     tm = MagicMock()
@@ -83,6 +85,7 @@ def authed_client() -> TestClient:
     el.recent.return_value = []
     with patch.dict(os.environ, {"ARTEMIS_API_KEYS": "test-key-abc"}):
         import artemis.api.auth as auth_mod
+
         importlib.reload(auth_mod)
         app = create_app(tm, agg, publisher=pub, effector_manager=em, engagement_log=el)
         c = TestClient(app, raise_server_exceptions=False)
@@ -95,6 +98,7 @@ def authed_client() -> TestClient:
 # Tests — open mode
 # ---------------------------------------------------------------------------
 
+
 class TestOpenModeEndpoints:
     def test_root_ok(self, client: TestClient) -> None:
         r = client.get("/")
@@ -105,7 +109,13 @@ class TestOpenModeEndpoints:
         r = client.get("/health")
         assert r.status_code == 200
         body = r.json()
-        for key in ("status", "mqtt_connected", "aggregator_running", "track_count", "uptime_s"):
+        for key in (
+            "status",
+            "mqtt_connected",
+            "aggregator_running",
+            "track_count",
+            "uptime_s",
+        ):
             assert key in body
 
     def test_threats_list(self, client: TestClient) -> None:
@@ -135,13 +145,17 @@ class TestOpenModeEndpoints:
         assert "artemis_" in r.text
 
     def test_post_command_open_mode_succeeds(self, client: TestClient) -> None:
-        r = client.post("/commands/jammer-01", json={"action": "activate", "duration_s": 3.0})
+        r = client.post(
+            "/commands/jammer-01", json={"action": "activate", "duration_s": 3.0}
+        )
         assert r.status_code == 200
         body = r.json()
         assert body["effector_id"] == "jammer-01"
 
     def test_post_command_invalid_duration_rejected(self, client: TestClient) -> None:
-        r = client.post("/commands/jammer-01", json={"action": "activate", "duration_s": 9999})
+        r = client.post(
+            "/commands/jammer-01", json={"action": "activate", "duration_s": 9999}
+        )
         assert r.status_code == 422  # FastAPI validation
 
     def test_engagements_returns_list(self, client: TestClient) -> None:
@@ -159,6 +173,7 @@ class TestOpenModeEndpoints:
 # ---------------------------------------------------------------------------
 # Tests — auth enabled
 # ---------------------------------------------------------------------------
+
 
 class TestAuthMode:
     def test_command_without_key_rejected(self, authed_client: TestClient) -> None:

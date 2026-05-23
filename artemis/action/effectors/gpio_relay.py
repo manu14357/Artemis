@@ -28,6 +28,7 @@ This effector only controls physical barriers, alarms, and deterrents.
 RF jamming is intentionally absent from this implementation — it is
 illegal in most jurisdictions without specific authorisation.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,6 +47,7 @@ _MAX_DURATION_S: float = 300.0
 # Attempt to import RPi.GPIO; degrade gracefully on non-RPi systems.
 try:
     import RPi.GPIO as GPIO  # type: ignore[import]
+
     _GPIO_AVAILABLE = True
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -58,7 +60,7 @@ except ImportError:
 _TIER_PIN_INDEX: dict[EngagementTier, int] = {
     EngagementTier.ENGAGE_HARD: 0,
     EngagementTier.ENGAGE_SOFT: 1,
-    EngagementTier.TRACK_ONLY:  2,
+    EngagementTier.TRACK_ONLY: 2,
 }
 
 
@@ -111,8 +113,8 @@ class GPIORelayEffector:
         if username:
             self._client.username_pw_set(username, password)
 
-        self._client.on_connect    = self._on_connect
-        self._client.on_message    = self._on_message
+        self._client.on_connect = self._on_connect
+        self._client.on_message = self._on_message
         self._client.on_disconnect = self._on_disconnect
 
     # ------------------------------------------------------------------
@@ -148,7 +150,9 @@ class GPIORelayEffector:
         else:
             log.error("GPIO relay MQTT connect failed rc=%d", rc)
 
-    def _on_disconnect(self, client, userdata, rc, properties=None, reason=None) -> None:
+    def _on_disconnect(
+        self, client, userdata, rc, properties=None, reason=None
+    ) -> None:
         log.info("GPIO relay disconnected rc=%d", rc)
 
     def _on_message(self, client, userdata, msg) -> None:
@@ -172,7 +176,9 @@ class GPIORelayEffector:
             self._activate(self._pins[pin_idx], duration_s)
             log.info(
                 "GPIO activate pin=%d tier=%s duration=%.1fs",
-                self._pins[pin_idx], tier.value, duration_s,
+                self._pins[pin_idx],
+                tier.value,
+                duration_s,
             )
         else:
             log.debug("tier=%s → no activation", tier.value)

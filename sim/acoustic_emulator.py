@@ -21,20 +21,20 @@ from artemis.core.types import AcousticDetection, DroneType
 
 # Reference SNR at 1 m (dB) per drone size category
 _REF_SNR_1M: dict[str, float] = {
-    "DJI_Mini3":   50.0,
-    "DJI_Mavic3":  55.0,
-    "Autel_Evo2":  55.0,
+    "DJI_Mini3": 50.0,
+    "DJI_Mavic3": 55.0,
+    "Autel_Evo2": 55.0,
     "FPV_Generic": 60.0,
-    "unknown":     50.0,
+    "unknown": 50.0,
 }
 
-_MAX_RANGE_M = 200.0          # Beyond this, acoustic SNR too low for detection
+_MAX_RANGE_M = 200.0  # Beyond this, acoustic SNR too low for detection
 _ATMOS_ABSORB_DB_PER_M = 0.001  # ~1 dB per km atmospheric absorption at 2 kHz
 
 _MODEL_TO_DRONE_TYPE: dict[str, DroneType] = {
-    "DJI_Mini3":   DroneType.DJI_MINI,
-    "DJI_Mavic3":  DroneType.DJI_MAVIC,
-    "Autel_Evo2":  DroneType.AUTEL,
+    "DJI_Mini3": DroneType.DJI_MINI,
+    "DJI_Mavic3": DroneType.DJI_MAVIC,
+    "Autel_Evo2": DroneType.AUTEL,
     "FPV_Generic": DroneType.FPV,
 }
 
@@ -53,12 +53,13 @@ def _snr_at_range(model: str, distance_m: float) -> float:
 @dataclass
 class AcousticEmulatorState:
     """Per-drone acoustic emulator state."""
-    drone_id:        str
-    model:           str
-    sample_rate_hz:  float = 16000.0    # controls detection periodicity
-    threshold_snr:   float = 5.0        # min SNR to declare a detection
-    noise_std_deg:   float = 5.0        # bearing angle noise (degrees)
-    _next_sample:    float = field(default=0.0, repr=False)
+
+    drone_id: str
+    model: str
+    sample_rate_hz: float = 16000.0  # controls detection periodicity
+    threshold_snr: float = 5.0  # min SNR to declare a detection
+    noise_std_deg: float = 5.0  # bearing angle noise (degrees)
+    _next_sample: float = field(default=0.0, repr=False)
 
     def sample(
         self,
@@ -71,7 +72,7 @@ class AcousticEmulatorState:
         Uses window-based sampling: one detection per 500 ms window.
         """
         now = time.monotonic()
-        window_s = 0.5   # 500 ms STFT window
+        window_s = 0.5  # 500 ms STFT window
         if now < self._next_sample:
             return None
         self._next_sample = now + window_s + random.uniform(-0.05, 0.05)
@@ -87,7 +88,11 @@ class AcousticEmulatorState:
         noisy_bearing = bearing_deg + random.gauss(0, self.noise_std_deg)
         noisy_bearing = noisy_bearing % 360.0
 
-        range_m = distance_m + random.gauss(0, distance_m * 0.05) if distance_m < 150.0 else None
+        range_m = (
+            distance_m + random.gauss(0, distance_m * 0.05)
+            if distance_m < 150.0
+            else None
+        )
 
         drone_type = _MODEL_TO_DRONE_TYPE.get(self.model, DroneType.UNKNOWN)
 

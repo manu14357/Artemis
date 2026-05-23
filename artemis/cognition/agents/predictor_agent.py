@@ -14,6 +14,7 @@ The predictor is stateless, CPU-only, and completes in < 0.1 ms.
 
 Timeout: 20 ms (hub_default.yaml cognition.predictor_timeout_ms)
 """
+
 from __future__ import annotations
 
 import math
@@ -35,23 +36,26 @@ _MAX_SAFE_RANGE_M: float = 2000.0
 # Result dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PredictionResult:
     """Output of PredictorAgent.predict()."""
+
     # (x, y, z) position tuples at each waypoint horizon
-    waypoints:        list[tuple]
+    waypoints: list[tuple]
     # Closest approach coordinates (metres, XY plane)
-    impact_x_m:       float
-    impact_y_m:       float
+    impact_x_m: float
+    impact_y_m: float
     # Time from now until CPA; None when drone is receding or stationary
     time_to_impact_s: float | None
     # Impact probability in [0, 1]
-    probability:      float
+    probability: float
 
 
 # ---------------------------------------------------------------------------
 # Agent
 # ---------------------------------------------------------------------------
+
 
 class PredictorAgent:
     """
@@ -90,10 +94,7 @@ class PredictorAgent:
         x, y, z, vx, vy, vz = track.state
 
         # 1. Waypoints
-        waypoints = [
-            (x + vx * t, y + vy * t, z + vz * t)
-            for t in _WAYPOINT_HORIZONS_S
-        ]
+        waypoints = [(x + vx * t, y + vy * t, z + vz * t) for t in _WAYPOINT_HORIZONS_S]
 
         # 2. Closest point of approach in XY plane
         # P(t) = (x + vx*t, y + vy*t)
@@ -124,7 +125,9 @@ class PredictorAgent:
 
         log.debug(
             "track=%s cpa=(%.1f,%.1f) tti=%s prob=%.3f",
-            track.track_id, cpa_x, cpa_y,
+            track.track_id,
+            cpa_x,
+            cpa_y,
             f"{tti:.1f}s" if tti is not None else "N/A",
             probability,
         )

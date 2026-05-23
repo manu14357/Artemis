@@ -8,6 +8,7 @@ drones within the 100 ms real-time budget (50 Hz target frame rate).
 Run with: python -m pytest tests/load/swarm_1000.py -v -s
 Or standalone: python tests/load/swarm_1000.py
 """
+
 from __future__ import annotations
 
 import statistics
@@ -38,16 +39,18 @@ def _make_swarm_detections(n: int) -> list[RFDetection]:
     """Generate n synthetic RFDetection objects."""
     dets = []
     for i in range(n):
-        dets.append(RFDetection(
-            frequency=_DRONE_FREQS[i % len(_DRONE_FREQS)],
-            peak_power_db=-45.0 + (i % 10),
-            source=f"node-{i % 4:02d}",
-            timestamp=time.time(),
-            layer=SensorLayer.RF,
-            drone_type=_DRONE_TYPES[i % len(_DRONE_TYPES)],
-            confidence=0.6 + (i % 4) * 0.1,
-            bearing_deg=float(i % 360),
-        ))
+        dets.append(
+            RFDetection(
+                frequency=_DRONE_FREQS[i % len(_DRONE_FREQS)],
+                peak_power_db=-45.0 + (i % 10),
+                source=f"node-{i % 4:02d}",
+                timestamp=time.time(),
+                layer=SensorLayer.RF,
+                drone_type=_DRONE_TYPES[i % len(_DRONE_TYPES)],
+                confidence=0.6 + (i % 4) * 0.1,
+                bearing_deg=float(i % 360),
+            )
+        )
     return dets
 
 
@@ -59,9 +62,9 @@ def _make_swarm_tracks(n: int) -> list[Track]:
             track_id=str(uuid.uuid4())[:8],
             status=TrackStatus.CONFIRMED,
         )
-        x = (i % 100) * 20.0 - 1000.0      # -1000 to +1000 m in x
-        y = (i // 100) * 20.0 - 1000.0      # -1000 to +1000 m in y
-        vx = (i % 10) * 3.0 - 15.0          # -15 to +15 m/s
+        x = (i % 100) * 20.0 - 1000.0  # -1000 to +1000 m in x
+        y = (i // 100) * 20.0 - 1000.0  # -1000 to +1000 m in y
+        vx = (i % 10) * 3.0 - 15.0  # -15 to +15 m/s
         vy = (i % 7) * 3.0 - 10.0
         t.state = [x, y, 30.0, vx, vy, 0.0]
         t.sensor_layers = {SensorLayer.RF}
@@ -74,6 +77,7 @@ def _make_swarm_tracks(n: int) -> list[Track]:
 # Benchmark helpers
 # ---------------------------------------------------------------------------
 
+
 def _bench_scoring(tracks: list[Track], n_runs: int = 5) -> list[float]:
     """Measure threat scoring latency over n_runs, return per-run ms list."""
     scorer = ThreatScorer()
@@ -85,12 +89,13 @@ def _bench_scoring(tracks: list[Track], n_runs: int = 5) -> list[float]:
     return latencies
 
 
-def _bench_routing(tracks: list[Track], scores: dict[str, float],
-                   n_runs: int = 5) -> list[float]:
+def _bench_routing(
+    tracks: list[Track], scores: dict[str, float], n_runs: int = 5
+) -> list[float]:
     """Measure command routing latency."""
     latencies = []
     for _ in range(n_runs):
-        router = CommandRouter()   # fresh router each run (no dedup state)
+        router = CommandRouter()  # fresh router each run (no dedup state)
         t0 = time.perf_counter()
         router.route(tracks, scores)
         latencies.append((time.perf_counter() - t0) * 1000)
@@ -100,6 +105,7 @@ def _bench_routing(tracks: list[Track], scores: dict[str, float],
 def _bench_triangulation(n_nodes: int = 4, n_runs: int = 100) -> list[float]:
     """Measure triangulation latency with n_nodes bearing lines."""
     import math
+
     latencies = []
     # Simulate a drone at (200, 150) from hub origin
     drone_x, drone_y = 200.0, 150.0
@@ -135,6 +141,7 @@ def _bench_triangulation(n_nodes: int = 4, n_runs: int = 100) -> list[float]:
 # Pytest tests
 # ---------------------------------------------------------------------------
 
+
 class TestSwarm1000Throughput:
     """
     Verify the cognition pipeline meets the 100 ms budget for 1000 drones.
@@ -142,7 +149,7 @@ class TestSwarm1000Throughput:
     """
 
     _N_DRONES = 1000
-    _BUDGET_MS = 100.0    # 100 ms real-time budget per fusion cycle
+    _BUDGET_MS = 100.0  # 100 ms real-time budget per fusion cycle
 
     def test_threat_scoring_within_budget(self) -> None:
         tracks = _make_swarm_tracks(self._N_DRONES)
@@ -152,9 +159,9 @@ class TestSwarm1000Throughput:
             f"\n[load] ThreatScorer {self._N_DRONES} tracks: "
             f"mean={mean_ms:.2f}ms min={min(latencies):.2f}ms max={max(latencies):.2f}ms"
         )
-        assert mean_ms < self._BUDGET_MS, (
-            f"ThreatScorer too slow: {mean_ms:.2f} ms > {self._BUDGET_MS} ms budget"
-        )
+        assert (
+            mean_ms < self._BUDGET_MS
+        ), f"ThreatScorer too slow: {mean_ms:.2f} ms > {self._BUDGET_MS} ms budget"
 
     def test_command_routing_within_budget(self) -> None:
         tracks = _make_swarm_tracks(self._N_DRONES)
@@ -181,27 +188,25 @@ class TestSwarm1000Throughput:
             latencies.append((time.perf_counter() - t0) * 1000)
         mean_ms = statistics.mean(latencies)
         print(
-            f"\n[load] Full pipeline {self._N_DRONES} drones: "
-            f"mean={mean_ms:.2f}ms"
+            f"\n[load] Full pipeline {self._N_DRONES} drones: " f"mean={mean_ms:.2f}ms"
         )
-        assert mean_ms < self._BUDGET_MS * 2, (
-            f"Full pipeline too slow: {mean_ms:.2f} ms"
-        )
+        assert (
+            mean_ms < self._BUDGET_MS * 2
+        ), f"Full pipeline too slow: {mean_ms:.2f} ms"
 
     def test_triangulation_latency(self) -> None:
         """Single triangulation call must be << 1 ms."""
         latencies = _bench_triangulation(n_nodes=4, n_runs=200)
         p99_ms = sorted(latencies)[int(0.99 * len(latencies))]
         mean_ms = statistics.mean(latencies)
-        print(
-            f"\n[load] triangulate() 4-node: mean={mean_ms:.3f}ms p99={p99_ms:.3f}ms"
-        )
+        print(f"\n[load] triangulate() 4-node: mean={mean_ms:.3f}ms p99={p99_ms:.3f}ms")
         assert p99_ms < 10.0, f"Triangulation p99 too slow: {p99_ms:.3f} ms"
 
 
 # ---------------------------------------------------------------------------
 # Standalone runner
 # ---------------------------------------------------------------------------
+
 
 def _standalone_benchmark() -> None:
     print("=" * 60)
@@ -241,4 +246,3 @@ def _standalone_benchmark() -> None:
 
 if __name__ == "__main__":
     _standalone_benchmark()
-

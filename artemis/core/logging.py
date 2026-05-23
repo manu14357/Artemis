@@ -2,6 +2,7 @@
 artemis/core/logging.py
 Structured JSON logging helper used across hub, node, and sim.
 """
+
 from __future__ import annotations
 
 import json

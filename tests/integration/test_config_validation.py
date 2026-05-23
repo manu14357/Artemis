@@ -4,6 +4,7 @@ Integration tests for artemis.core.config_validator.
 
 All tests run in-process with no hardware required.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,6 +21,7 @@ from artemis.core.config_validator import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _default_node() -> NodeConfig:
     cfg = NodeConfig()
@@ -41,6 +43,7 @@ def _default_hub() -> HubConfig:
 # ---------------------------------------------------------------------------
 # NodeConfig validation
 # ---------------------------------------------------------------------------
+
 
 class TestValidateNodeConfig:
     def test_valid_config_no_warnings(self) -> None:
@@ -99,6 +102,7 @@ class TestValidateNodeConfig:
 # HubConfig validation
 # ---------------------------------------------------------------------------
 
+
 class TestValidateHubConfig:
     def test_valid_config_no_warnings(self) -> None:
         cfg = _default_hub()
@@ -139,6 +143,7 @@ class TestValidateHubConfig:
 # ---------------------------------------------------------------------------
 # Env-var overrides
 # ---------------------------------------------------------------------------
+
 
 class TestEnvVarOverrides:
     def test_node_id_override(self, monkeypatch: pytest.MonkeyPatch) -> None:

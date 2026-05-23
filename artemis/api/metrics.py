@@ -22,6 +22,7 @@ Usage
 
 GET /metrics serves Prometheus text format via ``generate_text()``.
 """
+
 from __future__ import annotations
 
 import time

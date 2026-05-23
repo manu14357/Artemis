@@ -7,9 +7,12 @@ from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.command_router import EngagementTier
 
 
-def _cmd(track_id: str, tier: EngagementTier, score: float, x: float = 0.0, y: float = 0.0):
+def _cmd(
+    track_id: str, tier: EngagementTier, score: float, x: float = 0.0, y: float = 0.0
+):
     """Create a minimal Command-like object using the real Command dataclass."""
     from artemis.cognition.agents.command_router import Command
+
     return Command(
         track_id=track_id,
         tier=tier,
@@ -56,7 +59,7 @@ class TestSchedulerAgent:
         """With 1 effector and 3 commands the highest-scoring command wins."""
         cmds = [
             _cmd("t1", EngagementTier.ENGAGE_HARD, 0.6),
-            _cmd("t2", EngagementTier.ENGAGE_HARD, 0.95),   # highest
+            _cmd("t2", EngagementTier.ENGAGE_HARD, 0.95),  # highest
             _cmd("t3", EngagementTier.ENGAGE_SOFT, 0.4),
         ]
         schedule = self.agent.assign(cmds, effectors=["effector-01"])
@@ -67,8 +70,7 @@ class TestSchedulerAgent:
     def test_three_effectors_full_assignment(self):
         """3 effectors and 3 equal-tier commands → all 3 assigned."""
         cmds = [
-            _cmd(f"t{i}", EngagementTier.ENGAGE_HARD, 0.9 - i * 0.1)
-            for i in range(3)
+            _cmd(f"t{i}", EngagementTier.ENGAGE_HARD, 0.9 - i * 0.1) for i in range(3)
         ]
         schedule = self.agent.assign(cmds, effectors=[f"e{i}" for i in range(3)])
         assert len(schedule.assignments) == 3
@@ -91,8 +93,8 @@ class TestSchedulerAgent:
     def test_range_tiebreak(self):
         """When scores are equal the closer drone (smaller sqrt(x²+y²)) wins."""
         cmds = [
-            _cmd("far",   EngagementTier.ENGAGE_HARD, 0.9, x=400.0),  # farther
-            _cmd("close", EngagementTier.ENGAGE_HARD, 0.9, x=50.0),   # closer
+            _cmd("far", EngagementTier.ENGAGE_HARD, 0.9, x=400.0),  # farther
+            _cmd("close", EngagementTier.ENGAGE_HARD, 0.9, x=50.0),  # closer
         ]
         schedule = self.agent.assign(cmds, effectors=["e0"])
         assert schedule.assignments["e0"].track_id == "close"

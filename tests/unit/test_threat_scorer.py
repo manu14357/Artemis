@@ -2,8 +2,8 @@
 tests/unit/test_threat_scorer.py
 Unit tests for artemis.cognition.agents.threat_scorer.ThreatScorer
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 
 from artemis.cognition.agents.threat_scorer import ThreatScorer
@@ -13,6 +13,7 @@ from artemis.core.types import DroneType, SensorLayer, Track, TrackStatus
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_track(
     x: float = 0.0,
@@ -45,6 +46,7 @@ def _make_track(
 # Tests
 # ---------------------------------------------------------------------------
 
+
 class TestThreatScorerBasic:
     def setup_method(self) -> None:
         self.scorer = ThreatScorer(protected_origin_m=(0.0, 0.0))
@@ -69,10 +71,17 @@ class TestThreatScorerBasic:
     def test_score_clamped_to_unit_interval(self) -> None:
         """Extreme scenario: very close, very fast, FPV drone, 4 layers."""
         t = _make_track(
-            x=10.0, y=5.0,
-            vx=35.0, vy=20.0,   # high speed toward origin
+            x=10.0,
+            y=5.0,
+            vx=35.0,
+            vy=20.0,  # high speed toward origin
             drone_type=DroneType.FPV_GENERIC,
-            layers={SensorLayer.RF, SensorLayer.ACOUSTIC, SensorLayer.RADAR, SensorLayer.OPTICAL},
+            layers={
+                SensorLayer.RF,
+                SensorLayer.ACOUSTIC,
+                SensorLayer.RADAR,
+                SensorLayer.OPTICAL,
+            },
         )
         scores = self.scorer.score([t])
         score = scores[t.track_id]
@@ -95,7 +104,12 @@ class TestThreatScorerBasic:
         single = _make_track(x=200.0, layers={SensorLayer.RF})
         quad = _make_track(
             x=200.0,
-            layers={SensorLayer.RF, SensorLayer.ACOUSTIC, SensorLayer.RADAR, SensorLayer.OPTICAL},
+            layers={
+                SensorLayer.RF,
+                SensorLayer.ACOUSTIC,
+                SensorLayer.RADAR,
+                SensorLayer.OPTICAL,
+            },
         )
         scores = self.scorer.score([single, quad])
         assert scores[quad.track_id] > scores[single.track_id]
@@ -103,7 +117,7 @@ class TestThreatScorerBasic:
     def test_approaching_scores_higher_than_receding(self) -> None:
         """Track at (-200, 0) moving toward (0,0) should score higher than moving away."""
         approaching = _make_track(x=-200.0, y=0.0, vx=15.0, vy=0.0)  # toward origin
-        receding = _make_track(x=-200.0, y=0.0, vx=-15.0, vy=0.0)    # away from origin
+        receding = _make_track(x=-200.0, y=0.0, vx=-15.0, vy=0.0)  # away from origin
         scores = self.scorer.score([approaching, receding])
         assert scores[approaching.track_id] > scores[receding.track_id]
 

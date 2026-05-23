@@ -12,6 +12,7 @@ Scoring factors:
 Output: dict mapping track_id → float score in [0, 1].
 A score ≥ 0.8 should be escalated to Tier 4/5 (immediate response).
 """
+
 from __future__ import annotations
 
 import math
@@ -28,23 +29,23 @@ log = get_logger("cognition.threat_scorer")
 # ---------------------------------------------------------------------------
 
 _DRONE_BASE_SCORE: dict[DroneType, float] = {
-    DroneType.DJI_MAVIC:   0.35,   # mid-weight, camera / payload capable
-    DroneType.DJI_MINI:    0.20,   # lightweight, limited payload
-    DroneType.AUTEL_EVO:   0.35,   # similar to Mavic class
-    DroneType.FPV_GENERIC: 0.50,   # high-speed, often used in kinetic attacks
-    DroneType.UNKNOWN:     0.30,   # conservative default
+    DroneType.DJI_MAVIC: 0.35,  # mid-weight, camera / payload capable
+    DroneType.DJI_MINI: 0.20,  # lightweight, limited payload
+    DroneType.AUTEL_EVO: 0.35,  # similar to Mavic class
+    DroneType.FPV_GENERIC: 0.50,  # high-speed, often used in kinetic attacks
+    DroneType.UNKNOWN: 0.30,  # conservative default
 }
 
 # Per-layer bonus: each extra sensor layer adds evidence → higher confidence
 _LAYER_BONUS_PER_LAYER: float = 0.05
-_MAX_LAYER_BONUS: float = 0.20   # capped at 4 layers × 0.05
+_MAX_LAYER_BONUS: float = 0.20  # capped at 4 layers × 0.05
 
 # Speed scoring: above 30 m/s counts as full speed threat
 _SPEED_MAX_MPS: float = 30.0
 
 # Range scoring: below this distance (metres) triggers full proximity score
 _CLOSE_RANGE_M: float = 200.0
-_VERY_CLOSE_M: float  = 50.0
+_VERY_CLOSE_M: float = 50.0
 
 
 class ThreatScorer:
@@ -90,7 +91,9 @@ class ThreatScorer:
             scores[track.track_id] = round(min(max(s, 0.0), 1.0), 4)
             log.debug(
                 "track=%s status=%s score=%.3f",
-                track.track_id, track.status.value, scores[track.track_id],
+                track.track_id,
+                track.status.value,
+                scores[track.track_id],
             )
         return scores
 
@@ -131,7 +134,7 @@ class ThreatScorer:
         if speed > 0.1:
             # Unit vector from track to origin
             dx, dy = ox - x, oy - y
-            d = math.sqrt(dx ** 2 + dy ** 2) or 1.0
+            d = math.sqrt(dx**2 + dy**2) or 1.0
             # Cosine similarity between velocity vector and approach direction
             cos_theta = (vx * dx + vy * dy) / (speed * d)
             # Map [-1, +1] → [0, 1] and scale by weight
@@ -142,7 +145,14 @@ class ThreatScorer:
         if track.status == TrackStatus.COASTED:
             coast_penalty = 0.10
 
-        total = base + layer_bonus + 0.15 * speed_score + 0.25 * prox_score + approach_score - coast_penalty
+        total = (
+            base
+            + layer_bonus
+            + 0.15 * speed_score
+            + 0.25 * prox_score
+            + approach_score
+            - coast_penalty
+        )
         return total
 
     @staticmethod

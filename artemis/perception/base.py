@@ -2,6 +2,7 @@
 artemis/perception/base.py
 Abstract base class for all perception drivers (real hardware and emulators).
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -13,9 +14,9 @@ from artemis.core.types import Detection
 
 class DriverStatus(str, Enum):
     STARTING = "starting"
-    RUNNING  = "running"
-    ERROR    = "error"
-    STOPPED  = "stopped"
+    RUNNING = "running"
+    ERROR = "error"
+    STOPPED = "stopped"
 
 
 class PerceptionDriver(ABC):

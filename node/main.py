@@ -32,6 +32,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 try:
     import psutil
+
     _HAS_PSUTIL = True
 except ImportError:
     _HAS_PSUTIL = False
@@ -55,9 +56,11 @@ _NOTIFY_SOCKET_ENV = "NOTIFY_SOCKET"
 # sd_notify helper (no dependency on sdnotify package)
 # ---------------------------------------------------------------------------
 
+
 def _sd_notify(msg: str) -> None:
     """Send a sd_notify message if NOTIFY_SOCKET is set."""
     import os, socket  # noqa: E401
+
     sock_path = os.environ.get(_NOTIFY_SOCKET_ENV)
     if not sock_path:
         return
@@ -72,6 +75,7 @@ def _sd_notify(msg: str) -> None:
 # Driver factory
 # ---------------------------------------------------------------------------
 
+
 def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]]:
     """
     Instantiate each enabled sensor driver.
@@ -84,12 +88,18 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
     if sensors.rf.enabled:
         try:
             from artemis.perception.rf.rtlsdr_listener import RTLSDRListener
-            drivers.append((SensorLayer.RF, RTLSDRListener(
-                node_id,
-                frequencies=sensors.rf.frequencies,
-                fft_size=sensors.rf.fft_size,
-                threshold_db=sensors.rf.threshold_db,
-            )))
+
+            drivers.append(
+                (
+                    SensorLayer.RF,
+                    RTLSDRListener(
+                        node_id,
+                        frequencies=sensors.rf.frequencies,
+                        fft_size=sensors.rf.fft_size,
+                        threshold_db=sensors.rf.threshold_db,
+                    ),
+                )
+            )
             log.info("RF driver enabled")
         except ImportError as exc:
             log.warning("RF driver skipped: %s", exc)
@@ -97,15 +107,21 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
     if sensors.acoustic.enabled:
         try:
             from artemis.perception.acoustic.classifier import AcousticClassifier
-            drivers.append((SensorLayer.ACOUSTIC, AcousticClassifier(
-                node_id,
-                sample_rate=sensors.acoustic.sample_rate,
-                channels=sensors.acoustic.channels,
-                device_index=sensors.acoustic.device_index,
-                window_ms=sensors.acoustic.window_ms,
-                model_path=sensors.acoustic.model_path,
-                confidence_threshold=sensors.acoustic.confidence_threshold,
-            )))
+
+            drivers.append(
+                (
+                    SensorLayer.ACOUSTIC,
+                    AcousticClassifier(
+                        node_id,
+                        sample_rate=sensors.acoustic.sample_rate,
+                        channels=sensors.acoustic.channels,
+                        device_index=sensors.acoustic.device_index,
+                        window_ms=sensors.acoustic.window_ms,
+                        model_path=sensors.acoustic.model_path,
+                        confidence_threshold=sensors.acoustic.confidence_threshold,
+                    ),
+                )
+            )
             log.info("Acoustic driver enabled")
         except ImportError as exc:
             log.warning("Acoustic driver skipped: %s", exc)
@@ -113,14 +129,20 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
     if sensors.radar.enabled:
         try:
             from artemis.perception.radar.xm125_processor import XM125Processor
-            drivers.append((SensorLayer.RADAR, XM125Processor(
-                node_id,
-                serial_port=sensors.radar.serial_port,
-                start_point=sensors.radar.start_point,
-                num_points=sensors.radar.num_points,
-                step_length=sensors.radar.step_length,
-                profile=sensors.radar.profile,
-            )))
+
+            drivers.append(
+                (
+                    SensorLayer.RADAR,
+                    XM125Processor(
+                        node_id,
+                        serial_port=sensors.radar.serial_port,
+                        start_point=sensors.radar.start_point,
+                        num_points=sensors.radar.num_points,
+                        step_length=sensors.radar.step_length,
+                        profile=sensors.radar.profile,
+                    ),
+                )
+            )
             log.info("Radar driver enabled")
         except ImportError as exc:
             log.warning("Radar driver skipped: %s", exc)
@@ -128,14 +150,20 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
     if sensors.optical.enabled:
         try:
             from artemis.perception.optical.detector import OpticalDetector
+
             resolution = tuple(sensors.optical.resolution[:2])
-            drivers.append((SensorLayer.OPTICAL, OpticalDetector(
-                node_id,
-                resolution=resolution,
-                fps=sensors.optical.fps,
-                mog2_learning_rate=sensors.optical.mog2_learning_rate,
-                min_blob_area=sensors.optical.min_blob_area,
-            )))
+            drivers.append(
+                (
+                    SensorLayer.OPTICAL,
+                    OpticalDetector(
+                        node_id,
+                        resolution=resolution,
+                        fps=sensors.optical.fps,
+                        mog2_learning_rate=sensors.optical.mog2_learning_rate,
+                        min_blob_area=sensors.optical.min_blob_area,
+                    ),
+                )
+            )
             log.info("Optical driver enabled")
         except ImportError as exc:
             log.warning("Optical driver skipped: %s", exc)
@@ -146,6 +174,7 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
 # ---------------------------------------------------------------------------
 # Driver task runner
 # ---------------------------------------------------------------------------
+
 
 async def _run_driver(
     layer: SensorLayer,
@@ -158,10 +187,10 @@ async def _run_driver(
     Stops when stop_event is set or driver raises.
     """
     _publish_fn = {
-        SensorLayer.RF:       publisher.publish_rf,
+        SensorLayer.RF: publisher.publish_rf,
         SensorLayer.ACOUSTIC: publisher.publish_acoustic,
-        SensorLayer.RADAR:    publisher.publish_radar,
-        SensorLayer.OPTICAL:  publisher.publish_optical,
+        SensorLayer.RADAR: publisher.publish_radar,
+        SensorLayer.OPTICAL: publisher.publish_optical,
     }[layer]
 
     try:
@@ -181,6 +210,7 @@ async def _run_driver(
 # ---------------------------------------------------------------------------
 # Heartbeat loop
 # ---------------------------------------------------------------------------
+
 
 async def _heartbeat_loop(
     publisher: MQTTPublisher,
@@ -221,6 +251,7 @@ async def _heartbeat_loop(
 # ---------------------------------------------------------------------------
 # Main async entry-point
 # ---------------------------------------------------------------------------
+
 
 async def _async_main(cfg: NodeConfig, test_mode: bool) -> int:
     """
@@ -318,14 +349,17 @@ async def _async_main(cfg: NodeConfig, test_mode: bool) -> int:
 # CLI entry-point
 # ---------------------------------------------------------------------------
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run ARTEMIS sensor node daemon")
     parser.add_argument(
-        "--config", required=True,
+        "--config",
+        required=True,
         help="Path to node YAML config file",
     )
     parser.add_argument(
-        "--test-mode", action="store_true",
+        "--test-mode",
+        action="store_true",
         help="Run each driver for 10 s then exit (smoke test)",
     )
     return parser.parse_args()

@@ -7,6 +7,7 @@ snapshots at ws_push_rate_hz (default 10 Hz from hub_default.yaml).
 
 Message format: JSON array of threat objects (same as GET /threats).
 """
+
 from __future__ import annotations
 
 import asyncio

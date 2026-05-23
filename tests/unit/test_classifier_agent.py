@@ -50,8 +50,10 @@ class TestClassifierAgent:
     def test_rf_match_mavic(self):
         """DJI Mavic RF fingerprint → classified as DJI_MAVIC."""
         rf = RFDetection(
-            source="n1", drone_type=DroneType.DJI_MAVIC,
-            frequency=2450_000_000, peak_power_db=-55.0,
+            source="n1",
+            drone_type=DroneType.DJI_MAVIC,
+            frequency=2450_000_000,
+            peak_power_db=-55.0,
             confidence=0.9,
         )
         result = self.agent.classify(_make_track(rf=rf))
@@ -63,7 +65,8 @@ class TestClassifierAgent:
         """RF detection with no fingerprint → RF layer contributes nothing decisive."""
         rf = RFDetection(
             source="n1",
-            frequency=433_000_000, peak_power_db=-80.0,
+            frequency=433_000_000,
+            peak_power_db=-80.0,
         )
         result = self.agent.classify(_make_track(rf=rf))
         # Should still return some result even with empty RF
@@ -149,8 +152,10 @@ class TestClassifierAgent:
     def test_multi_layer_consensus_boosts_confidence(self):
         """Agreement across multiple layers should yield high confidence."""
         rf = RFDetection(
-            source="n1", drone_type=DroneType.DJI_MAVIC,
-            frequency=2450_000_000, peak_power_db=-55.0,
+            source="n1",
+            drone_type=DroneType.DJI_MAVIC,
+            frequency=2450_000_000,
+            peak_power_db=-55.0,
             confidence=0.9,
         )
         acoustic = AcousticDetection(
@@ -160,7 +165,8 @@ class TestClassifierAgent:
             drone_type=DroneType.DJI_MAVIC,
         )
         radar = RadarDetection(
-            source="n1", range_m=200.0,
+            source="n1",
+            range_m=200.0,
             micro_doppler_spread=0.45,  # DJI_MAVIC expected spread
         )
         result = self.agent.classify(_make_track(rf=rf, acoustic=acoustic, radar=radar))

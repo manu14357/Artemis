@@ -2,6 +2,7 @@
 artemis/core/config.py
 YAML config loader with typed wrapper classes for hub and node configuration.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -14,6 +15,7 @@ import yaml
 # ---------------------------------------------------------------------------
 # Low-level loader
 # ---------------------------------------------------------------------------
+
 
 def load_yaml(path: str | Path) -> dict:
     """Load and return a YAML file as a plain dict. Raises if file not found."""
@@ -28,6 +30,7 @@ def load_yaml(path: str | Path) -> dict:
 # ---------------------------------------------------------------------------
 # Hub config
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class EKFConfig:
@@ -75,10 +78,12 @@ class MQTTConfig:
 @dataclass
 class APIConfig:
     ws_push_rate_hz: float = 10.0
-    cors_origins: list = field(default_factory=lambda: [
-        "http://localhost:3000",
-        "http://localhost:4173",
-    ])
+    cors_origins: list = field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://localhost:4173",
+        ]
+    )
 
 
 @dataclass
@@ -123,7 +128,9 @@ class HubConfig:
                 keepalive=mqtt_raw.get("keepalive", 60),
                 node_topic_prefix=mqtt_raw.get("node_topic_prefix", "artemis/nodes"),
                 threats_topic=mqtt_raw.get("threats_topic", "artemis/threats"),
-                commands_topic_prefix=mqtt_raw.get("commands_topic_prefix", "artemis/commands"),
+                commands_topic_prefix=mqtt_raw.get(
+                    "commands_topic_prefix", "artemis/commands"
+                ),
                 username=mqtt_raw.get("username"),
                 password=mqtt_raw.get("password"),
             ),
@@ -146,10 +153,13 @@ class HubConfig:
             ),
             api=APIConfig(
                 ws_push_rate_hz=api_raw.get("ws_push_rate_hz", 10.0),
-                cors_origins=api_raw.get("cors_origins", [
-                    "http://localhost:3000",
-                    "http://localhost:4173",
-                ]),
+                cors_origins=api_raw.get(
+                    "cors_origins",
+                    [
+                        "http://localhost:3000",
+                        "http://localhost:4173",
+                    ],
+                ),
             ),
             logging=LoggingConfig(
                 level=log_raw.get("level", "INFO"),
@@ -164,6 +174,7 @@ class HubConfig:
 # Node config
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class NodeLocation:
     lat: float = 0.0
@@ -174,7 +185,9 @@ class NodeLocation:
 @dataclass
 class RFSensorConfig:
     enabled: bool = True
-    frequencies: list = field(default_factory=lambda: [2_437_000_000, 5_780_000_000, 915_000_000])
+    frequencies: list = field(
+        default_factory=lambda: [2_437_000_000, 5_780_000_000, 915_000_000]
+    )
     fft_size: int = 1024
     threshold_db: float = -50.0
 
@@ -247,7 +260,9 @@ class NodeConfig:
             sensors=SensorsConfig(
                 rf=RFSensorConfig(
                     enabled=rf_raw.get("enabled", True),
-                    frequencies=rf_raw.get("frequencies", [2_437_000_000, 5_780_000_000, 915_000_000]),
+                    frequencies=rf_raw.get(
+                        "frequencies", [2_437_000_000, 5_780_000_000, 915_000_000]
+                    ),
                     fft_size=rf_raw.get("fft_size", 1024),
                     threshold_db=rf_raw.get("threshold_db", -50.0),
                 ),
@@ -257,7 +272,9 @@ class NodeConfig:
                     channels=ac_raw.get("channels", 4),
                     device_index=ac_raw.get("device_index", 0),
                     window_ms=ac_raw.get("window_ms", 500),
-                    model_path=ac_raw.get("model_path", "models/acoustic_drone_cnn.tflite"),
+                    model_path=ac_raw.get(
+                        "model_path", "models/acoustic_drone_cnn.tflite"
+                    ),
                     confidence_threshold=ac_raw.get("confidence_threshold", 0.75),
                 ),
                 radar=RadarSensorConfig(

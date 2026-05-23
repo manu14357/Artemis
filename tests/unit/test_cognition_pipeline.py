@@ -2,6 +2,7 @@
 tests/unit/test_cognition_pipeline.py
 Unit tests for CognitionPipeline.process() — end-to-end cognition loop.
 """
+
 from unittest.mock import MagicMock
 
 from artemis.cognition.pipeline import CognitionPipeline
@@ -26,16 +27,19 @@ def _mock_pipeline(
         track_id="t-0001",
         tier=tier,
         score=score,
-        x_m=100.0, y_m=0.0, z_m=0.0,
+        x_m=100.0,
+        y_m=0.0,
+        z_m=0.0,
     )
 
-    scorer  = MagicMock()
+    scorer = MagicMock()
     scorer.score.return_value = {"t-0001": score}
 
-    router  = MagicMock()
+    router = MagicMock()
     router.route.return_value = [cmd]
 
     from artemis.cognition.agents.scheduler_agent import EngagementSchedule
+
     schedule = EngagementSchedule(
         assignments={"sim-relay-01": cmd},
         unassigned=[],
@@ -70,7 +74,9 @@ class TestCognitionPipeline:
 
     def test_high_score_dispatches_command(self):
         """ENGAGE_HARD tier → publish_command is called once."""
-        pipeline, publisher, _ = _mock_pipeline(score=0.9, tier=EngagementTier.ENGAGE_HARD)
+        pipeline, publisher, _ = _mock_pipeline(
+            score=0.9, tier=EngagementTier.ENGAGE_HARD
+        )
         pipeline.process([_track()])
         publisher.publish_command.assert_called_once()
 
@@ -84,8 +90,11 @@ class TestCognitionPipeline:
 
         ignore_cmd = Command(
             track_id="t-0001",
-            tier=EngagementTier.IGNORE, score=0.05,
-            x_m=0.0, y_m=0.0, z_m=0.0,
+            tier=EngagementTier.IGNORE,
+            score=0.05,
+            x_m=0.0,
+            y_m=0.0,
+            z_m=0.0,
         )
         schedule = EngagementSchedule(assignments={}, unassigned=[ignore_cmd])
         pipeline._scheduler.assign.return_value = schedule
@@ -95,7 +104,9 @@ class TestCognitionPipeline:
 
     def test_log_written_on_dispatch(self):
         """Each dispatched command must produce one EngagementLog.append call."""
-        pipeline, _, engagement_log = _mock_pipeline(score=0.9, tier=EngagementTier.ENGAGE_HARD)
+        pipeline, _, engagement_log = _mock_pipeline(
+            score=0.9, tier=EngagementTier.ENGAGE_HARD
+        )
         pipeline.process([_track()])
         engagement_log.append.assert_called_once()
 
@@ -106,6 +117,7 @@ class TestCognitionPipeline:
         pipeline._scorer.score.return_value = {}
         pipeline._router.route.return_value = []
         from artemis.cognition.agents.scheduler_agent import EngagementSchedule
+
         pipeline._scheduler.assign.return_value = EngagementSchedule(
             assignments={}, unassigned=[]
         )
@@ -119,8 +131,22 @@ class TestCognitionPipeline:
         from artemis.cognition.agents.command_router import Command
         from artemis.cognition.agents.scheduler_agent import EngagementSchedule
 
-        cmd1 = Command(track_id="t1", tier=EngagementTier.ENGAGE_HARD, score=0.9, x_m=0.0, y_m=0.0, z_m=0.0)
-        cmd2 = Command(track_id="t2", tier=EngagementTier.ENGAGE_SOFT, score=0.7, x_m=0.0, y_m=0.0, z_m=0.0)
+        cmd1 = Command(
+            track_id="t1",
+            tier=EngagementTier.ENGAGE_HARD,
+            score=0.9,
+            x_m=0.0,
+            y_m=0.0,
+            z_m=0.0,
+        )
+        cmd2 = Command(
+            track_id="t2",
+            tier=EngagementTier.ENGAGE_SOFT,
+            score=0.7,
+            x_m=0.0,
+            y_m=0.0,
+            z_m=0.0,
+        )
 
         pipeline, publisher, engagement_log = _mock_pipeline()
         schedule = EngagementSchedule(
@@ -135,7 +161,9 @@ class TestCognitionPipeline:
 
     def test_publisher_exception_does_not_crash_pipeline(self):
         """If publish_command raises, the pipeline must not propagate the exception."""
-        pipeline, publisher, engagement_log = _mock_pipeline(score=0.9, tier=EngagementTier.ENGAGE_HARD)
+        pipeline, publisher, engagement_log = _mock_pipeline(
+            score=0.9, tier=EngagementTier.ENGAGE_HARD
+        )
         publisher.publish_command.side_effect = RuntimeError("broker down")
 
         # Should not raise

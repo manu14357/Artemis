@@ -15,6 +15,7 @@ GET  /effectors  — list of currently registered effector IDs
 POST /commands/{effector_id}  — dispatch engagement command via MQTT [auth]
 GET  /engagements             — recent engagement history (last 100)
 """
+
 from __future__ import annotations
 
 import time
@@ -37,8 +38,13 @@ if TYPE_CHECKING:
 
 class CommandBody(BaseModel):
     """Validated request body for POST /commands/{effector_id}."""
-    action: str = Field(..., description="Action to execute, e.g. 'activate', 'deactivate'")
-    duration_s: float = Field(5.0, ge=0.0, le=300.0, description="Engagement duration in seconds")
+
+    action: str = Field(
+        ..., description="Action to execute, e.g. 'activate', 'deactivate'"
+    )
+    duration_s: float = Field(
+        5.0, ge=0.0, le=300.0, description="Engagement duration in seconds"
+    )
 
 
 def create_app(
@@ -112,14 +118,15 @@ def create_app(
 
         last_fusion_ts = getattr(aggregator, "_last_fusion_ts", None)
         last_fusion_age_s: Optional[float] = (
-            round(time.time() - last_fusion_ts, 2) if last_fusion_ts is not None else None
+            round(time.time() - last_fusion_ts, 2)
+            if last_fusion_ts is not None
+            else None
         )
 
         track_count = threat_map.count if threat_map is not None else 0
 
-        is_degraded = (
-            (publisher is not None and not mqtt_connected)
-            or (last_fusion_age_s is not None and last_fusion_age_s > 5.0)
+        is_degraded = (publisher is not None and not mqtt_connected) or (
+            last_fusion_age_s is not None and last_fusion_age_s > 5.0
         )
 
         return {

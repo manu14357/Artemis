@@ -20,6 +20,7 @@ Usage
     # On shutdown:
     manager.stop_all()
 """
+
 from __future__ import annotations
 
 import threading
@@ -35,6 +36,7 @@ log = get_logger("action.effector_manager")
 # Structural interface
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class EffectorBase(Protocol):
     """
@@ -43,6 +45,7 @@ class EffectorBase(Protocol):
     Any class with an ``effector_id`` attribute and ``start()`` / ``stop()``
     methods qualifies — no inheritance required.
     """
+
     effector_id: str
 
     def start(self) -> None: ...
@@ -52,6 +55,7 @@ class EffectorBase(Protocol):
 # ---------------------------------------------------------------------------
 # Manager
 # ---------------------------------------------------------------------------
+
 
 class EffectorManager:
     """
@@ -87,7 +91,8 @@ class EffectorManager:
             self._registry[effector.effector_id] = effector
             log.info(
                 "registered effector id=%s type=%s",
-                effector.effector_id, type(effector).__name__,
+                effector.effector_id,
+                type(effector).__name__,
             )
 
     def get_active_effectors(self) -> list[str]:
@@ -129,7 +134,8 @@ class EffectorManager:
                 except Exception as exc:
                     log.error(
                         "error stopping effector %s: %s",
-                        effector.effector_id, exc,
+                        effector.effector_id,
+                        exc,
                     )
             if self._executor:
                 self._executor.shutdown(wait=False)
@@ -146,5 +152,7 @@ class EffectorManager:
         except Exception as exc:
             log.error(
                 "effector %s crashed: %s",
-                effector.effector_id, exc, exc_info=True,
+                effector.effector_id,
+                exc,
+                exc_info=True,
             )

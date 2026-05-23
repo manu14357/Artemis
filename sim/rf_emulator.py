@@ -37,26 +37,26 @@ def free_space_path_loss_db(distance_m: float, frequency_hz: float) -> float:
 
 # Transmit power per model (dBm)
 _TX_POWER_DBM: dict[str, float] = {
-    "DJI_Mini3":   20.0,
-    "DJI_Mavic3":  23.0,
-    "Autel_Evo2":  20.0,
+    "DJI_Mini3": 20.0,
+    "DJI_Mavic3": 23.0,
+    "Autel_Evo2": 20.0,
     "FPV_Generic": 27.0,
-    "unknown":     20.0,
+    "unknown": 20.0,
 }
 
 # Burst interval per model (seconds between RF bursts)
 _BURST_INTERVAL_S: dict[str, float] = {
-    "DJI_Mini3":   0.02,
-    "DJI_Mavic3":  0.02,
-    "Autel_Evo2":  0.033,
+    "DJI_Mini3": 0.02,
+    "DJI_Mavic3": 0.02,
+    "Autel_Evo2": 0.033,
     "FPV_Generic": 0.008,
-    "unknown":     0.05,
+    "unknown": 0.05,
 }
 
 _MODEL_TO_DRONE_TYPE: dict[str, DroneType] = {
-    "DJI_Mini3":   DroneType.DJI_MINI,
-    "DJI_Mavic3":  DroneType.DJI_MAVIC,
-    "Autel_Evo2":  DroneType.AUTEL,
+    "DJI_Mini3": DroneType.DJI_MINI,
+    "DJI_Mavic3": DroneType.DJI_MAVIC,
+    "Autel_Evo2": DroneType.AUTEL,
     "FPV_Generic": DroneType.FPV,
 }
 
@@ -64,11 +64,12 @@ _MODEL_TO_DRONE_TYPE: dict[str, DroneType] = {
 @dataclass
 class RFEmulatorState:
     """Per-drone RF emulator state (updated each physics tick)."""
-    drone_id:     str
-    model:        str
-    frequency:    int       # Hz
+
+    drone_id: str
+    model: str
+    frequency: int  # Hz
     tx_power_dbm: float
-    _next_burst:  float = field(default=0.0, repr=False)
+    _next_burst: float = field(default=0.0, repr=False)
 
     def sample(
         self,

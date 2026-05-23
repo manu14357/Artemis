@@ -12,6 +12,7 @@ Tests exercise:
 No real MQTT broker is required — detections are injected directly into
 the aggregator's asyncio.Queue.
 """
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, AsyncMock
@@ -34,6 +35,7 @@ from artemis.mesh.aggregator import MeshAggregator
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_track_manager(cfg: HubConfig) -> TrackManager:
     """Build a TrackManager from a HubConfig, matching hub/main.py construction."""
     return TrackManager(
@@ -45,7 +47,9 @@ def _make_track_manager(cfg: HubConfig) -> TrackManager:
     )
 
 
-def _make_aggregator(fusion_cycle_hz: float = 100.0) -> tuple[MeshAggregator, MagicMock]:
+def _make_aggregator(
+    fusion_cycle_hz: float = 100.0,
+) -> tuple[MeshAggregator, MagicMock]:
     cfg = HubConfig()
     track_manager = _make_track_manager(cfg)
     threat_map = ThreatMap()
@@ -110,6 +114,7 @@ def _node_status(node_id: str = "node-01") -> NodeStatus:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestDetectionQueueIngestion:
     @pytest.mark.asyncio
@@ -220,8 +225,7 @@ class TestSwarmDetection:
 
         for _ in range(5):
             dets = [
-                _radar_detection(bearing=90.0, range_m=100.0 + i * 2)
-                for i in range(5)
+                _radar_detection(bearing=90.0, range_m=100.0 + i * 2) for i in range(5)
             ]
             tracks = tm.update(dets)
 

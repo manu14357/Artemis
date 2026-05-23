@@ -17,6 +17,7 @@ conversion is straightforward (detections already carry range / bearing or
 explicit x/y).  Acoustic and RF detections without explicit position
 contribute only to layer confirmation, not to KF state updates.
 """
+
 from __future__ import annotations
 
 import time
@@ -45,6 +46,7 @@ log = get_logger("fusion.track_manager")
 # Track record — internal wrapper around a Track dataclass + an EKFTracker
 # ---------------------------------------------------------------------------
 
+
 class _TrackRecord:
     def __init__(self, track: Track, kf: EKFTracker) -> None:
         self.track = track
@@ -62,6 +64,7 @@ class _TrackRecord:
 # ---------------------------------------------------------------------------
 # TrackManager
 # ---------------------------------------------------------------------------
+
 
 class TrackManager:
     """
@@ -117,7 +120,7 @@ class TrackManager:
 
         # --- 2. Filter detections that have position info ---
         positioned: list[tuple[Detection, np.ndarray]] = []
-        layer_only:  list[Detection] = []
+        layer_only: list[Detection] = []
 
         for det in detections:
             xyz = _detection_to_xyz(det)
@@ -127,9 +130,9 @@ class TrackManager:
                 layer_only.append(det)
 
         # --- 3. Hungarian assignment ---
-        det_xyz   = [xyz for _, xyz in positioned]
+        det_xyz = [xyz for _, xyz in positioned]
         track_ids = list(self._records.keys())
-        trk_xyz   = [self._records[tid].predicted_xyz for tid in track_ids]
+        trk_xyz = [self._records[tid].predicted_xyz for tid in track_ids]
 
         matches, unmatched_dets, unmatched_trks = assign(
             det_xyz, trk_xyz, self._max_dist
@@ -181,8 +184,11 @@ class TrackManager:
                 n_layers = len(rec.track.sensor_layers)
                 if n_layers >= self._min_layers or rec.track.hit_count >= 3:
                     rec.track.status = TrackStatus.CONFIRMED
-                    log.info("track confirmed track_id=%s layers=%s",
-                             rec.id, rec.track.sensor_layers)
+                    log.info(
+                        "track confirmed track_id=%s layers=%s",
+                        rec.id,
+                        rec.track.sensor_layers,
+                    )
 
         return [rec.track for rec in self._records.values()]
 
@@ -213,7 +219,8 @@ class TrackManager:
 
     def get_confirmed_tracks(self) -> list[Track]:
         return [
-            rec.track for rec in self._records.values()
+            rec.track
+            for rec in self._records.values()
             if rec.track.status in (TrackStatus.CONFIRMED, TrackStatus.COASTED)
         ]
 
@@ -225,6 +232,7 @@ class TrackManager:
 # Detection → Cartesian position
 # ---------------------------------------------------------------------------
 
+
 def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
     """
     Convert a raw Detection to a Cartesian [x, y, z] measurement in metres.
@@ -235,10 +243,12 @@ def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
     if isinstance(det, RadarDetection):
         # Radar gives range and optionally bearing.
         r = det.range_m
-        bearing_rad = np.radians(det.bearing_deg) if det.bearing_deg is not None else 0.0
+        bearing_rad = (
+            np.radians(det.bearing_deg) if det.bearing_deg is not None else 0.0
+        )
         x = r * np.sin(bearing_rad)
         y = r * np.cos(bearing_rad)
-        z = 0.0   # radar is 2-D in this model
+        z = 0.0  # radar is 2-D in this model
         return np.array([x, y, z])
 
     if isinstance(det, RFDetection) and det.bearing_deg is not None:
@@ -286,4 +296,3 @@ def _find_nearest_track(
                 best_d = d
                 best = rec
     return best
-

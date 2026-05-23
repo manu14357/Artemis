@@ -16,6 +16,7 @@ Import guard:
     sounddevice and tflite_runtime are optional. Missing libs cause
     DriverUnavailableError so the node daemon skips gracefully.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -37,17 +38,20 @@ log = get_logger("perception.acoustic")
 # ---------------------------------------------------------------------------
 try:
     import sounddevice as sd
+
     _HAS_SD = True
 except ImportError:
     _HAS_SD = False
 
 try:
     import tflite_runtime.interpreter as tflite
+
     _HAS_TFLITE = True
 except ImportError:
     try:
         # Fallback: full TensorFlow on x86 dev machines
         import tensorflow.lite as tflite  # type: ignore[no-redef]
+
         _HAS_TFLITE = True
     except ImportError:
         _HAS_TFLITE = False
@@ -73,8 +77,9 @@ def _mel_to_hz(mel: float) -> float:
     return 700.0 * (10.0 ** (mel / 2595.0) - 1.0)
 
 
-def _mel_filterbank(n_mels: int, n_fft: int, sr: int,
-                    fmin: float = 0.0, fmax: float | None = None) -> np.ndarray:
+def _mel_filterbank(
+    n_mels: int, n_fft: int, sr: int, fmin: float = 0.0, fmax: float | None = None
+) -> np.ndarray:
     """Return a (n_mels, n_fft//2+1) mel filterbank matrix."""
     if fmax is None:
         fmax = sr / 2.0
@@ -97,10 +102,13 @@ def _mel_filterbank(n_mels: int, n_fft: int, sr: int,
     return fb
 
 
-def _compute_mel_spectrogram(audio: np.ndarray, sr: int,
-                              n_fft: int = _N_FFT,
-                              n_mels: int = _N_MELS,
-                              hop_length: int = 160) -> np.ndarray:
+def _compute_mel_spectrogram(
+    audio: np.ndarray,
+    sr: int,
+    n_fft: int = _N_FFT,
+    n_mels: int = _N_MELS,
+    hop_length: int = 160,
+) -> np.ndarray:
     """
     Compute log-mel spectrogram from mono audio array.
     Returns shape (n_mels, time_frames).
@@ -109,14 +117,14 @@ def _compute_mel_spectrogram(audio: np.ndarray, sr: int,
     window = np.hanning(n_fft)
     frames = []
     for start in range(0, len(audio) - n_fft, hop_length):
-        frame = audio[start:start + n_fft] * window
+        frame = audio[start : start + n_fft] * window
         spectrum = np.abs(np.fft.rfft(frame)) ** 2
         frames.append(spectrum)
 
     if not frames:
         return np.zeros((n_mels, 1))
 
-    power_spec = np.array(frames).T   # (n_freq, time)
+    power_spec = np.array(frames).T  # (n_freq, time)
     fb = _mel_filterbank(n_mels, n_fft, sr)
     mel_spec = fb @ power_spec
     log_mel = 10.0 * np.log10(np.maximum(mel_spec, 1e-10))
@@ -127,8 +135,10 @@ def _compute_mel_spectrogram(audio: np.ndarray, sr: int,
 # GCC-PHAT bearing estimation
 # ---------------------------------------------------------------------------
 
-def _gcc_phat_tdoa(sig_a: np.ndarray, sig_b: np.ndarray,
-                   sr: int, max_delay_samples: int = 50) -> float:
+
+def _gcc_phat_tdoa(
+    sig_a: np.ndarray, sig_b: np.ndarray, sr: int, max_delay_samples: int = 50
+) -> float:
     """
     Generalised Cross-Correlation with Phase Transform (GCC-PHAT).
     Returns the time-delay-of-arrival (TDOA) in seconds between two channels.
@@ -143,7 +153,7 @@ def _gcc_phat_tdoa(sig_a: np.ndarray, sig_b: np.ndarray,
     gcc = np.fft.irfft(cc_phat)
     # Restrict search to plausible microphone separation lags
     half = min(max_delay_samples, n // 2)
-    gcc_trimmed = np.concatenate([gcc[:half], gcc[n - half:]])
+    gcc_trimmed = np.concatenate([gcc[:half], gcc[n - half :]])
     lag = int(np.argmax(gcc_trimmed))
     if lag >= half:
         lag -= n
@@ -166,6 +176,7 @@ def _bearing_from_tdoa(tdoa_s: float, mic_spacing_m: float = 0.065) -> float:
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
+
 
 class AcousticClassifier(PerceptionDriver):
     """
@@ -215,7 +226,8 @@ class AcousticClassifier(PerceptionDriver):
         self._interpreter = await asyncio.to_thread(self._load_interpreter)
         log.info(
             "AcousticClassifier ready node=%s model=%s",
-            self.node_id, self._model_path.name,
+            self.node_id,
+            self._model_path.name,
         )
 
     async def stop(self) -> None:
@@ -233,7 +245,10 @@ class AcousticClassifier(PerceptionDriver):
         self.status = DriverStatus.RUNNING
         log.info(
             "AcousticClassifier streaming node=%s sr=%d ch=%d window=%dms",
-            self.node_id, self._sr, self._channels, self._window_samples * 1000 // self._sr,
+            self.node_id,
+            self._sr,
+            self._channels,
+            self._window_samples * 1000 // self._sr,
         )
 
         try:
@@ -293,6 +308,7 @@ class AcousticClassifier(PerceptionDriver):
         mel = _compute_mel_spectrogram(mono, self._sr)
         # Resize to model expected input (64 x 32 by default)
         from scipy.signal import resample  # lazy import
+
         n_time_expected = 32
         if mel.shape[1] != n_time_expected:
             mel_resized = resample(mel, n_time_expected, axis=1)
@@ -309,7 +325,7 @@ class AcousticClassifier(PerceptionDriver):
 
         # TFLite inference
         interp = self._interpreter
-        input_details = interp.get_input_details()   # type: ignore[attr-defined]
+        input_details = interp.get_input_details()  # type: ignore[attr-defined]
         output_details = interp.get_output_details()  # type: ignore[attr-defined]
         interp.set_tensor(input_details[0]["index"], input_data)  # type: ignore[attr-defined]
         interp.invoke()  # type: ignore[attr-defined]
