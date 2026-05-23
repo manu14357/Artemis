@@ -1,0 +1,114 @@
+---
+# infra/k8s/hub.yaml
+# ARTEMIS fusion hub — Deployment + Service + HPA
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hub
+  namespace: artemis
+  labels:
+    app: hub
+    component: artemis-hub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hub
+  template:
+    metadata:
+      labels:
+        app: hub
+        component: artemis-hub
+    spec:
+      containers:
+        - name: hub
+          image: python:3.11-slim
+          workingDir: /app
+          command:
+            - bash
+            - -lc
+            - |
+              pip install --no-cache-dir -r requirements.txt &&
+              python hub/main.py --config hub/config/hub_default.yaml
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: ARTEMIS_MQTT_BROKER
+              value: mosquitto.artemis.svc.cluster.local
+          ports:
+            - containerPort: 8080
+              name: api
+          volumeMounts:
+            - name: app-code
+              mountPath: /app
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+      # In production, replace hostPath with a proper image build
+      volumes:
+        - name: app-code
+          hostPath:
+            path: /opt/artemis
+            type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hub
+  namespace: artemis
+  labels:
+    app: hub
+spec:
+  selector:
+    app: hub
+  ports:
+    - name: api
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hub-hpa
+  namespace: artemis
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hub
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

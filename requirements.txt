@@ -36,3 +36,6 @@ aiofiles>=23.2.1
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 pyyaml>=6.0.1
+
+# ─── System / process monitoring (node daemon heartbeat) ──────────────────────
+psutil>=5.9.0

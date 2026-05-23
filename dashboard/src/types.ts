@@ -5,6 +5,9 @@
  *   position: {x, y, z}  (local Cartesian metres from hub reference)
  *   velocity: {vx, vy, vz}
  *   timestamp: float (Unix epoch seconds)
+ *   confidence: float 0–1 (sensor layer ratio)
+ *   tier: int 1–5
+ *   sensor_layers: string[] e.g. ["rf", "acoustic"]
  */
 
 export interface ThreatPosition {
@@ -24,6 +27,21 @@ export interface ThreatImpact {
   y: number;
 }
 
+/** Engagement tier strings emitted by CommandRouter (Phase 2) */
+export type EngagementTier = 'ignore' | 'track_only' | 'engage_soft' | 'engage_hard';
+
+/** Engagement command sent from CommandRouter via MQTT / API */
+export interface Command {
+  track_id:  string;
+  tier:      EngagementTier;
+  /** Threat scorer multi-factor score 0–1 */
+  score:     number;
+  position:  ThreatPosition;
+  timestamp: number;
+}
+
+export type SensorLayer = 'rf' | 'acoustic' | 'radar' | 'optical';
+
 export interface Threat {
   threat_id:     string;
   track_id:      string;
@@ -36,11 +54,14 @@ export interface Threat {
   impact:        ThreatImpact | null;
   swarm_id:      number | null;
   swarm_size:    number;
-  sensor_layers: string[];
+  /** e.g. ["rf", "acoustic"] */
+  sensor_layers: SensorLayer[];
   /** Unix epoch seconds */
   timestamp:     number;
-  /** 0–1 overall track quality score */
+  /** 0–1 overall track quality score (sensor layer ratio) */
   confidence:    number;
+  /** Phase 2: optional multi-factor threat score from ThreatScorer */
+  score?:        number;
 }
 
 export interface NodeStatusLocation {
@@ -52,7 +73,7 @@ export interface NodeStatusLocation {
 export interface NodeStatus {
   node_id:        string;
   location:       NodeStatusLocation;
-  sensors_active: string[];
+  sensors_active: SensorLayer[];
   last_heartbeat: number;
   online:         boolean;
   cpu_percent:    number;

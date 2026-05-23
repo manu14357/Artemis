@@ -1,0 +1,10 @@
+---
+# infra/k8s/namespace.yaml
+# ARTEMIS Kubernetes namespace — isolates all workloads
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: artemis
+  labels:
+    app.kubernetes.io/name: artemis
+    app.kubernetes.io/version: "2.0"

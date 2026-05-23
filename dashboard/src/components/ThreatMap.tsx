@@ -4,6 +4,8 @@
  * Three.js scene rendered on a <canvas> showing live drone positions
  * as coloured spheres in a local-Cartesian coordinate frame.
  *
+ * Controls: left-drag to orbit, right-drag to pan, scroll to zoom.
+ *
  * Must be 'use client' — Three.js uses browser-only globals (window, document,
  * ResizeObserver, WebGLRenderingContext).
  *
@@ -11,6 +13,7 @@
  */
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { Threat } from '../types';
 
 const TIER_COLOURS: Record<number, number> = {
@@ -29,10 +32,11 @@ interface Props {
 }
 
 export default function ThreatMap({ threats }: Props) {
-  const mountRef = useRef<HTMLDivElement>(null);
+  const mountRef     = useRef<HTMLDivElement>(null);
   const rendererRef  = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef     = useRef<THREE.Scene | null>(null);
   const cameraRef    = useRef<THREE.PerspectiveCamera | null>(null);
+  const controlsRef  = useRef<OrbitControls | null>(null);
   const spheresRef   = useRef<Map<string, THREE.Mesh>>(new Map());
   const frameRef     = useRef<number>(0);
 
@@ -41,7 +45,7 @@ export default function ThreatMap({ threats }: Props) {
     if (!mountRef.current) return;
     const el = mountRef.current;
 
-    const scene    = new THREE.Scene();
+    const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0d1117);
     sceneRef.current = scene;
 
@@ -56,12 +60,26 @@ export default function ThreatMap({ threats }: Props) {
     el.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // Grid
+    // OrbitControls — mouse/touch camera navigation
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.minDistance = 50;
+    controls.maxDistance = 3000;
+    controls.maxPolarAngle = Math.PI / 1.8;   // prevent flip under ground
+    controlsRef.current = controls;
+
+    // Grid (X-Y ground plane)
     const grid = new THREE.GridHelper(GRID_SIZE, GRID_DIV, 0x1e40af, 0x1e3a5f);
     grid.rotation.x = Math.PI / 2;
     scene.add(grid);
 
-    // Ambient + directional light
+    // Origin marker (hub position)
+    const originGeo = new THREE.SphereGeometry(6, 8, 8);
+    const originMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    scene.add(new THREE.Mesh(originGeo, originMat));
+
+    // Lighting
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
     const dir = new THREE.DirectionalLight(0xffffff, 0.8);
     dir.position.set(200, 200, 400);
@@ -69,15 +87,16 @@ export default function ThreatMap({ threats }: Props) {
 
     // Resize observer
     const ro = new ResizeObserver(() => {
-      if (!el || !camera || !renderer) return;
-      camera.aspect = el.clientWidth / el.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(el.clientWidth, el.clientHeight);
+      if (!el || !cameraRef.current || !rendererRef.current) return;
+      cameraRef.current.aspect = el.clientWidth / el.clientHeight;
+      cameraRef.current.updateProjectionMatrix();
+      rendererRef.current.setSize(el.clientWidth, el.clientHeight);
     });
     ro.observe(el);
 
     function animate() {
       frameRef.current = requestAnimationFrame(animate);
+      controls.update();   // needed for damping
       renderer.render(scene, camera);
     }
     animate();
@@ -85,8 +104,9 @@ export default function ThreatMap({ threats }: Props) {
     return () => {
       cancelAnimationFrame(frameRef.current);
       ro.disconnect();
+      controls.dispose();
       renderer.dispose();
-      el.removeChild(renderer.domElement);
+      if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement);
     };
   }, []);
 
@@ -103,7 +123,9 @@ export default function ThreatMap({ threats }: Props) {
       let mesh = spheresRef.current.get(t.threat_id);
 
       if (!mesh) {
-        const geo = new THREE.SphereGeometry(4, 12, 12);
+        // Scale sphere radius by tier (T5 is larger — more visible)
+        const radius = 3 + t.tier;
+        const geo = new THREE.SphereGeometry(radius, 12, 12);
         const mat = new THREE.MeshLambertMaterial({ color: colour });
         mesh = new THREE.Mesh(geo, mat);
         scene.add(mesh);
@@ -127,9 +149,24 @@ export default function ThreatMap({ threats }: Props) {
   }, [threats]);
 
   return (
-    <div
-      ref={mountRef}
-      style={{ width: '100%', height: '100%', minHeight: 400, borderRadius: 8 }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 400 }}>
+      <div
+        ref={mountRef}
+        style={{ width: '100%', height: '100%', borderRadius: 8 }}
+      />
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 8,
+          right: 10,
+          fontSize: 9,
+          color: '#475569',
+          pointerEvents: 'none',
+          letterSpacing: 0.5,
+        }}
+      >
+        DRAG TO ORBIT · SCROLL TO ZOOM · RIGHT-DRAG TO PAN
+      </div>
+    </div>
   );
 }

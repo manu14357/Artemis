@@ -1,0 +1,129 @@
+---
+# infra/k8s/dashboard.yaml
+# ARTEMIS Next.js dashboard — Deployment + Service + Ingress
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  namespace: artemis
+  labels:
+    app: dashboard
+    component: artemis-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+        component: artemis-dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: node:20-alpine
+          workingDir: /app/dashboard
+          command:
+            - sh
+            - -c
+            - "npm ci && npx next start --hostname 0.0.0.0 --port 3000"
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NEXT_PUBLIC_HUB_URL
+              value: http://hub.artemis.svc.cluster.local:8080
+            - name: NEXT_PUBLIC_HUB_WS_URL
+              value: ws://hub.artemis.svc.cluster.local:8080/ws
+          ports:
+            - containerPort: 3000
+              name: http
+          volumeMounts:
+            - name: dashboard-code
+              mountPath: /app/dashboard
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: dashboard-code
+          hostPath:
+            path: /opt/artemis/dashboard
+            type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+  namespace: artemis
+  labels:
+    app: dashboard
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
+
+---
+# Optional Ingress — expose the dashboard publicly
+# Requires an ingress controller (nginx, traefik, etc.) in the cluster
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: artemis-ingress
+  namespace: artemis
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Needed for WebSocket upgrade (API /ws endpoint)
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "Upgrade";
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: artemis.local   # replace with your DNS name
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  name: http
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: hub
+                port:
+                  name: api
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: hub
+                port:
+                  name: api

@@ -27,6 +27,18 @@ export default function DashboardPage() {
   }, []);
 
   const critical = threats.filter((t) => t.tier >= 4).length;
+  const avgConf = threats.length
+    ? Math.round((threats.reduce((s, t) => s + (t.score ?? t.confidence), 0) / threats.length) * 100)
+    : null;
+
+  // Count how many active threats include each sensor layer
+  const layerCounts: Record<string, number> = {};
+  for (const t of threats) {
+    for (const l of t.sensor_layers) {
+      layerCounts[l] = (layerCounts[l] ?? 0) + 1;
+    }
+  }
+
   const h = String(Math.floor(uptime / 3600)).padStart(2, '0');
   const m = String(Math.floor((uptime % 3600) / 60)).padStart(2, '0');
   const s = String(uptime % 60).padStart(2, '0');
@@ -74,6 +86,16 @@ export default function DashboardPage() {
               CRITICAL: {critical}
             </span>
           )}
+          {avgConf !== null && (
+            <span style={{ color: avgConf >= 75 ? '#22c55e' : avgConf >= 40 ? '#eab308' : '#ef4444' }}>
+              CONF: {avgConf}%
+            </span>
+          )}
+          {Object.entries(layerCounts).map(([layer, count]) => (
+            <span key={layer} style={{ color: '#64748b', fontSize: 11 }}>
+              {layer.toUpperCase()}: {count}
+            </span>
+          ))}
           <span style={{ color: '#64748b', fontFamily: 'monospace' }}>{uptimeStr}</span>
         </div>
       </div>
