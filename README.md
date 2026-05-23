@@ -2,6 +2,7 @@
 
 **Agentic Response & Tactical Engagement with Multi-agent Intelligence System**
 
+[![CI](https://github.com/manu14357/Artemis/actions/workflows/ci.yml/badge.svg)](https://github.com/manu14357/Artemis/actions/workflows/ci.yml)
 [![GitHub](https://img.shields.io/badge/GitHub-manu14357%2FArtemis-blue?logo=github)](https://github.com/manu14357/Artemis)
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink?logo=github-sponsors)](https://github.com/sponsors/manu14357)
 
@@ -100,6 +101,19 @@ ARTEMIS v1 is **not** a single device — it is a distributed sensor mesh where 
 
 ---
 
+## Quickstart — Docker Compose (Fastest)
+
+Spin up hub + dashboard + MQTT broker with a single command:
+
+```bash
+git clone https://github.com/manu14357/Artemis && cd Artemis
+docker compose -f infra/docker-compose.yml up
+# Hub API:  http://localhost:8080
+# Dashboard: http://localhost:3000
+```
+
+---
+
 ## Quickstart — Simulation Mode (No Hardware Required)
 
 Run the entire ARTEMIS stack on any laptop. No physical sensors needed.
@@ -108,14 +122,14 @@ Run the entire ARTEMIS stack on any laptop. No physical sensors needed.
 
 - Python 3.11+
 - Node.js 18+
-- [Mosquitto MQTT broker](https://mosquitto.org/download/)
+- Mosquitto MQTT broker: `sudo apt install mosquitto` (Linux) or `brew install mosquitto` (macOS)
 
 ### Steps
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/artemis.git
-cd artemis
+git clone https://github.com/manu14357/Artemis
+cd Artemis
 
 # 2. Python environment
 python3.11 -m venv .venv
@@ -123,7 +137,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 3. Terminal A — MQTT broker
-mosquitto -c /etc/mosquitto/mosquitto.conf
+mosquitto
 
 # 4. Terminal B — Drone swarm simulator
 python sim/drone_swarm.py --scenario sim/scenarios/10_drone_swarm.yaml
@@ -160,10 +174,11 @@ sudo apt update && sudo apt upgrade -y
 **Step 2: One-command node setup**
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/your-org/artemis/main/scripts/setup_node.sh | bash
+sudo git clone https://github.com/manu14357/Artemis /opt/artemis
+sudo bash /opt/artemis/scripts/setup_node.sh
 ```
 
-This installs: Python 3.11, RTL-SDR drivers, GNU Radio, libcamera2, ALSA/PortAudio, Mosquitto, Acconeer exploration tool, ARTEMIS Python package, and registers the `artemis-node` systemd service.
+This installs: Python 3.11, RTL-SDR drivers, GNU Radio, picamera2, ALSA/PortAudio, Mosquitto, Acconeer exploration tool, ARTEMIS Python package, and registers the `artemis-node` systemd service.
 
 **Step 3: Sensor wiring**
 

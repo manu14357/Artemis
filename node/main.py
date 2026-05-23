@@ -39,7 +39,8 @@ except ImportError:
     _HAS_PSUTIL = False
 
 from artemis.core.config import NodeConfig
-from artemis.core.logging import get_logger
+from artemis.core.config_validator import apply_node_env_overrides, validate_node_config
+from artemis.core.logging import get_logger, setup_logging
 from artemis.core.types import NodeStatus, SensorLayer
 from artemis.mesh.publisher import MQTTPublisher
 from artemis.perception.base import DriverStatus, PerceptionDriver
@@ -344,6 +345,11 @@ def main() -> int:
     except Exception as exc:
         print(f"Error loading config: {exc}", file=sys.stderr)
         return 1
+
+    cfg = apply_node_env_overrides(cfg)
+    setup_logging()
+    for _w in validate_node_config(cfg):
+        log.warning("[config] %s", _w)
 
     return asyncio.run(_async_main(cfg, args.test_mode))
 

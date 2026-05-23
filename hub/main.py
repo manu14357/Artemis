@@ -36,6 +36,7 @@ from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.threat_scorer import ThreatScorer
 from artemis.cognition.pipeline import CognitionPipeline
 from artemis.core.config import HubConfig
+from artemis.core.config_validator import apply_hub_env_overrides, validate_hub_config
 from artemis.core.logging import get_logger, setup_logging
 from artemis.fusion.threat_map import ThreatMap
 from artemis.fusion.track_manager import TrackManager
@@ -203,6 +204,7 @@ def main() -> int:
         return 1
 
     cfg = HubConfig.from_yaml(cfg_path)
+    cfg = apply_hub_env_overrides(cfg)
     setup_logging(
         level=cfg.logging.level,
         log_file=cfg.logging.file,
@@ -210,6 +212,8 @@ def main() -> int:
         keep_backups=cfg.logging.keep_backups,
     )
     log.info("loaded config %s", cfg_path)
+    for _w in validate_hub_config(cfg):
+        log.warning("[config] %s", _w)
 
     try:
         asyncio.run(_run(cfg, manage_broker=not args.no_broker))

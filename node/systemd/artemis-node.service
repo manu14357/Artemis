@@ -2,19 +2,28 @@
 Description=ARTEMIS Node Daemon
 After=network-online.target mosquitto.service
 Wants=network-online.target
+Requires=mosquitto.service
 
 [Service]
-Type=simple
+Type=notify
 User=pi
 Group=pi
 WorkingDirectory=/opt/artemis
 Environment=PYTHONUNBUFFERED=1
 Environment=ARTEMIS_ENV=production
 ExecStart=/opt/artemis/.venv/bin/python node/main.py --config node/config/node_default.yaml
-Restart=always
+Restart=on-failure
 RestartSec=5
 TimeoutStopSec=20
 KillSignal=SIGINT
+
+# Watchdog — daemon must call sd_notify WATCHDOG=1 every 30 s
+WatchdogSec=30
+NotifyAccess=main
+
+# Restart throttle: no more than 5 restarts in 60 s
+StartLimitBurst=5
+StartLimitIntervalSec=60
 
 # Security hardening
 NoNewPrivileges=true
