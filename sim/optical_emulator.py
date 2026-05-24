@@ -123,7 +123,7 @@ class OpticalEmulatorState:
         confidence = min(1.0, area / (200.0 + area))
         range_m = (
             distance_m + random.gauss(0, distance_m * 0.08)
-            if distance_m < 150.0
+            if distance_m < 250.0
             else None
         )
 

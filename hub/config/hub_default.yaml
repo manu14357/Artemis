@@ -25,11 +25,11 @@ fusion:
   ekf:
     process_noise_q: 0.1      # Tune higher for faster/more maneuverable drones
     measurement_noise_r: 0.5
-    max_coast_frames: 10      # Drop a track after this many frames without an update
+    max_coast_frames: 30      # Drop a track after this many frames without an update (~3 s)
 
   # Hungarian algorithm — maximum cost to allow a detection-to-track assignment
   assignment:
-    max_distance_m: 50.0
+    max_distance_m: 100.0
 
   # DBSCAN swarm detection
   swarm:
@@ -38,7 +38,7 @@ fusion:
 
   # A track must be confirmed by at least N sensor layers before being published
   confirmation:
-    min_sensor_layers: 2
+    min_sensor_layers: 1
 
 cognition:
   # AI agent timeouts (ms) — agents run in parallel after track confirmation

@@ -28,14 +28,14 @@ _REF_SNR_1M: dict[str, float] = {
     "unknown": 50.0,
 }
 
-_MAX_RANGE_M = 200.0  # Beyond this, acoustic SNR too low for detection
+_MAX_RANGE_M = 250.0  # Beyond this, acoustic SNR too low for detection
 _ATMOS_ABSORB_DB_PER_M = 0.001  # ~1 dB per km atmospheric absorption at 2 kHz
 
 _MODEL_TO_DRONE_TYPE: dict[str, DroneType] = {
     "DJI_Mini3": DroneType.DJI_MINI,
     "DJI_Mavic3": DroneType.DJI_MAVIC,
-    "Autel_Evo2": DroneType.AUTEL,
-    "FPV_Generic": DroneType.FPV,
+    "Autel_Evo2": DroneType.AUTEL_EVO,
+    "FPV_Generic": DroneType.FPV_GENERIC,
 }
 
 
@@ -57,7 +57,7 @@ class AcousticEmulatorState:
     drone_id: str
     model: str
     sample_rate_hz: float = 16000.0  # controls detection periodicity
-    threshold_snr: float = 5.0  # min SNR to declare a detection
+    threshold_snr: float = 2.0  # min SNR to declare a detection
     noise_std_deg: float = 5.0  # bearing angle noise (degrees)
     _next_sample: float = field(default=0.0, repr=False)
 
@@ -90,7 +90,7 @@ class AcousticEmulatorState:
 
         range_m = (
             distance_m + random.gauss(0, distance_m * 0.05)
-            if distance_m < 150.0
+            if distance_m < 250.0
             else None
         )
 

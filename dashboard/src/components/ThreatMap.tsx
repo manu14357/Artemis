@@ -50,9 +50,9 @@ const RINGS = [
 
 // ── Geo helpers ───────────────────────────────────────────────────────────────
 
-/** Convert local Cartesian metres (x=East, z=South) to [lon, lat]. */
-function toCoord(x: number, z: number, cLat: number, cLon: number): [number, number] {
-  const lat = cLat + (-z) / 111_319.9;
+/** Convert local Cartesian metres (x=East, y=North) to [lon, lat]. */
+function toCoord(x: number, y: number, cLat: number, cLon: number): [number, number] {
+  const lat = cLat + y / 111_319.9;
   const lon = cLon + x / (111_319.9 * Math.cos((cLat * Math.PI) / 180));
   return [lon, lat];
 }
@@ -122,7 +122,7 @@ export default function ThreatMap({
     const alive  = new Set(threats.map((t) => t.threat_id));
     for (const id of trails.keys()) if (!alive.has(id)) trails.delete(id);
     for (const t of threats) {
-      const coord = toCoord(t.position.x, t.position.z, cLat, cLon);
+      const coord = toCoord(t.position.x, t.position.y, cLat, cLon);
       const pts   = trails.get(t.threat_id) ?? [];
       pts.push(coord);
       if (pts.length > TRAIL_LEN) pts.splice(0, pts.length - TRAIL_LEN);
@@ -134,7 +134,7 @@ export default function ThreatMap({
   const threatGeoJSON = useMemo((): FeatureCollection<Point> => ({
     type: 'FeatureCollection',
     features: threats.map((t): Feature<Point> => {
-      const [lon, lat] = toCoord(t.position.x, t.position.z, cLat, cLon);
+      const [lon, lat] = toCoord(t.position.x, t.position.y, cLat, cLon);
       return {
         type: 'Feature',
         id: t.threat_id,
@@ -196,7 +196,7 @@ export default function ThreatMap({
   );
 
   const popupCoords = selected
-    ? toCoord(selected.position.x, selected.position.z, cLat, cLon)
+    ? toCoord(selected.position.x, selected.position.y, cLat, cLon)
     : null;
 
   // ── Render ────────────────────────────────────────────────────────────────

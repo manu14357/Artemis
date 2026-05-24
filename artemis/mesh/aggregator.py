@@ -146,9 +146,6 @@ class MeshAggregator:
                     else:
                         detections.append(det)
 
-                if not detections:
-                    continue
-
                 # Run fusion
                 try:
                     with self._metrics.fusion_latency_timer():

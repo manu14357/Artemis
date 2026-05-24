@@ -122,6 +122,11 @@ class Drone:
                 self.lon = wp["lon"]
                 self.alt_m = wp.get("alt_m", self.alt_m)
                 self._wp_idx += 1
+                # Stop at final waypoint — prevents overshoot past the sensor
+                if self._wp_idx >= len(self.waypoints):
+                    self.vx_mps = 0.0
+                    self.vy_mps = 0.0
+                    self.vz_mps = 0.0
             else:
                 scale = speed / dist
                 self.vx_mps = tx * scale
@@ -187,14 +192,24 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
             lon = center_lon + math.degrees(dlon)
             alt = center_alt
 
-        # Waypoints — converging formation targets center
+        # Waypoints — converging formation: each drone targets a unique
+        # loiter point 80 m from center in its own radial direction.
+        # This keeps all 10 drones spatially separated so the track manager
+        # maintains 10 individual tracks instead of collapsing them to 1.
         waypoints = entry.get("waypoints", [])
         if not waypoints and formation == "converging":
+            loiter_r_m = 80.0  # metres from center; keeps drones >50 m apart
+            loiter_dlat = math.cos(angle) * loiter_r_m / _EARTH_R_M
+            loiter_dlon = (
+                math.sin(angle)
+                * loiter_r_m
+                / (_EARTH_R_M * math.cos(math.radians(center_lat)))
+            )
             waypoints = [
                 {
-                    "lat": center_lat,
-                    "lon": center_lon,
-                    "alt_m": center_alt - 20,
+                    "lat": center_lat + math.degrees(loiter_dlat),
+                    "lon": center_lon + math.degrees(loiter_dlon),
+                    "alt_m": center_alt,
                     "speed_mps": default_speed,
                 }
             ]
@@ -288,7 +303,7 @@ async def run_simulation(
                 bearing_deg=azimuth,
             )
             if rf_det:
-                publisher.publish_rf(node_id, rf_det)
+                publisher.publish_rf(rf_det)
 
             # --- Acoustic ---
             ac_det = drone.acoustic_emulator.sample(
@@ -296,7 +311,7 @@ async def run_simulation(
                 bearing_deg=azimuth,
             )
             if ac_det:
-                publisher.publish_acoustic(node_id, ac_det)
+                publisher.publish_acoustic(ac_det)
 
             # --- Radar ---
             rd_det = drone.radar_emulator.sample(
@@ -305,7 +320,7 @@ async def run_simulation(
                 velocity_mps=drone.speed_mps,
             )
             if rd_det:
-                publisher.publish_radar(node_id, rd_det)
+                publisher.publish_radar(rd_det)
 
             # --- Optical ---
             opt_det = drone.optical_emulator.sample(
@@ -314,7 +329,7 @@ async def run_simulation(
                 elevation_deg=elevation,
             )
             if opt_det:
-                publisher.publish_optical(node_id, opt_det)
+                publisher.publish_optical(opt_det)
 
         tick_count += 1
         if tick_count % 500 == 0:
@@ -342,7 +357,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--node-id", default="sim-node-01")
     parser.add_argument("--node-lat", type=float, default=17.385)
     parser.add_argument("--node-lon", type=float, default=78.487)
-    parser.add_argument("--node-alt", type=float, default=540.0)
+    parser.add_argument("--node-alt", type=float, default=100.0)
     parser.add_argument(
         "--duration", type=float, default=300.0, help="Simulation duration (s)"
     )

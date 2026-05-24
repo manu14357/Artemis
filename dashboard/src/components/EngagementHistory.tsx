@@ -37,7 +37,7 @@ function usePollEngagements(intervalMs = 5000): Engagement[] {
       controllerRef.current?.abort();
       controllerRef.current = new AbortController();
       try {
-        const r = await fetch(`${HUB_URL}/engagements?limit=20`, {
+        const r = await fetch(`${HUB_URL}/engagements?limit=200`, {
           signal: controllerRef.current.signal,
         });
         if (r.ok) {
@@ -161,7 +161,7 @@ export default function EngagementHistory() {
       </div>
 
       {/* Rows */}
-      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+      <div style={{ maxHeight: 500, overflowY: 'auto' }}>
         {engagements.length === 0 ? (
           <div
             style={{
