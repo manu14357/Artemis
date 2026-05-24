@@ -6,10 +6,10 @@ description: |
 swarm:
   formation: converging     # converging | line | grid | random
   center:
-    lat: 17.4050
-    lon: 78.4867
+    lat: 17.3850              # match node position so drones converge toward sensor
+    lon: 78.4870
     alt_m: 100
-  spread_m: 200             # Initial spread radius
+  spread_m: 200             # Initial spread radius — within acoustic range (200 m)
   speed_mps: 12
 
 drones:

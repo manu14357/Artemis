@@ -65,6 +65,8 @@ jobs:
           pip install pyrtlsdr || true
           pip install opencv-python-headless || true
           pip install sounddevice || true
+          # Install artemis package in editable mode
+          pip install -e .
 
       - name: Run unit + integration tests
         env:

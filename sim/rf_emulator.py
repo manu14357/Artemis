@@ -56,8 +56,8 @@ _BURST_INTERVAL_S: dict[str, float] = {
 _MODEL_TO_DRONE_TYPE: dict[str, DroneType] = {
     "DJI_Mini3": DroneType.DJI_MINI,
     "DJI_Mavic3": DroneType.DJI_MAVIC,
-    "Autel_Evo2": DroneType.AUTEL,
-    "FPV_Generic": DroneType.FPV,
+    "Autel_Evo2": DroneType.AUTEL_EVO,
+    "FPV_Generic": DroneType.FPV_GENERIC,
 }
 
 
