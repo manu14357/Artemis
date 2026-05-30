@@ -43,7 +43,7 @@ psutil>=5.9.0
 
 # ─── GPIO (Raspberry Pi hardware effector) ───────────────────────────────────
 # Installed automatically on armv7l (RPi 32-bit OS); skipped on other platforms.
-RPi.GPIO>=0.7.1; platform_machine=="armv7l"
+RPi.GPIO>=0.7.1; platform_machine=="aarch64" or platform_machine=="armv7l"
 
 # ─── Observability ───────────────────────────────────────────────────────────
 prometheus-client>=0.20.0

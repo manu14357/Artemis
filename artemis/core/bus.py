@@ -97,14 +97,18 @@ class EventBus:
                             topic,
                             pattern,
                         )
-                    # Schedule the callback as a task INSTEAD of also
-                    # putting it on the queue — not in addition to it.
-                    # Subscribers that use the queue should NOT also register
-                    # the same callback here; the two delivery modes are
-                    # mutually exclusive.  Here we only do queue delivery;
-                    # callers that want task-based delivery should set
-                    # queue_size=0 and only rely on the callback.
-                    asyncio.ensure_future(callback(event))
+                    # Fire the callback as a task.  The queue delivery above
+                    # is for callers that prefer pull-based consumption;
+                    # the callback is the primary push-based delivery.
+                    # Subscribers should use ONE of these, not both.
+                    try:
+                        asyncio.ensure_future(callback(event))
+                    except Exception:
+                        log.warning(
+                            "callback scheduling failed topic=%s pattern=%s",
+                            topic,
+                            pattern,
+                        )
                     matched += 1
 
         if matched == 0:
@@ -139,8 +143,6 @@ def _topic_matches(pattern: str, topic: str) -> bool:
     """
     if pattern == topic:
         return True
-    # Convert MQTT wildcards to fnmatch glob
-    pattern.replace("+", "[^/]+").replace("#", "**")
     # Use fnmatch with a regex-like approach
     parts_p = pattern.split("/")
     parts_t = topic.split("/")

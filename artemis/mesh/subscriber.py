@@ -156,6 +156,7 @@ class MQTTSubscriber:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
 
         self._client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"artemis-sub-{hub_id}",
             protocol=mqtt.MQTTv5,
         )
@@ -177,7 +178,7 @@ class MQTTSubscriber:
 
     def connect(self, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
         """Connect to broker and start the paho background thread."""
-        self._loop = loop or asyncio.get_event_loop()
+        self._loop = loop or asyncio.get_running_loop()
         self._client.connect(self._broker, self._port, self._keepalive)
         self._client.loop_start()
 

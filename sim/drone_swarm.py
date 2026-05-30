@@ -111,8 +111,7 @@ class Drone:
                 self.lat,
                 self.lon,
             )
-            tx + self.lat  # local frame target
-            ty + self.lon
+            # tx, ty, tz are already in local frame relative to (self.lat, self.lon)
             dist = math.hypot(tx, ty, tz)
 
             speed = wp.get("speed_mps", 10.0)
@@ -169,7 +168,6 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
         drone_id = entry.get("id", f"drone-{i:03d}")
         model = entry.get("model", "unknown")
         freq = int(entry.get("rf_freq", 2437000000))
-        float(entry.get("power_db", -50.0))
 
         # Starting position
         start = entry.get("start", {})
@@ -274,10 +272,11 @@ async def run_simulation(
     tick_count = 0
 
     log.info(
-        "simulation started drones=%d tick_hz=%.0f duration_s=%.0f",
+        "simulation started drones=%d tick_hz=%.0f duration_s=%.0f node_id=%s",
         len(drones),
         tick_hz,
         duration_s,
+        node_id,
     )
 
     while time.monotonic() < end_time:
@@ -303,6 +302,7 @@ async def run_simulation(
                 bearing_deg=azimuth,
             )
             if rf_det:
+                rf_det.source = node_id
                 publisher.publish_rf(rf_det)
 
             # --- Acoustic ---
@@ -311,6 +311,7 @@ async def run_simulation(
                 bearing_deg=azimuth,
             )
             if ac_det:
+                ac_det.source = node_id
                 publisher.publish_acoustic(ac_det)
 
             # --- Radar ---
@@ -320,6 +321,7 @@ async def run_simulation(
                 velocity_mps=drone.speed_mps,
             )
             if rd_det:
+                rd_det.source = node_id
                 publisher.publish_radar(rd_det)
 
             # --- Optical ---
@@ -329,6 +331,7 @@ async def run_simulation(
                 elevation_deg=elevation,
             )
             if opt_det:
+                opt_det.source = node_id
                 publisher.publish_optical(opt_det)
 
         tick_count += 1

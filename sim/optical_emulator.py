@@ -107,7 +107,7 @@ class OpticalEmulatorState:
         y1 = int(max(py - h / 2, 0))
         x2 = int(min(px + w / 2, _IMAGE_W))
         y2 = int(min(py + h / 2, _IMAGE_H))
-        bbox = (x1, y1, x2, y2)
+        bbox = (x1, y1, x2 - x1, y2 - y1)  # (x, y, w, h) format
 
         # Pixel velocity
         dt = now - self._prev_ts if self._prev_ts > 0 else 1.0 / self.fps

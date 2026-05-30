@@ -41,7 +41,14 @@ def _serialise(obj: Any) -> str:
         d = obj
     else:
         d = {"value": str(obj)}
-    return json.dumps(d, default=str)
+
+    def _default(o: Any) -> Any:
+        """JSON default handler that extracts enum values."""
+        if hasattr(o, "value"):
+            return o.value
+        return str(o)
+
+    return json.dumps(d, default=_default)
 
 
 class MQTTPublisher:
@@ -74,6 +81,7 @@ class MQTTPublisher:
         self._commands_prefix = "artemis/commands"
 
         self._client = mqtt.Client(
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"artemis-pub-{node_id}",
             protocol=mqtt.MQTTv5,
         )

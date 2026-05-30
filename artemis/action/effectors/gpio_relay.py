@@ -124,7 +124,11 @@ class GPIORelayEffector:
     def start(self) -> None:
         """Connect to broker and block until ``stop()`` is called."""
         self._client.connect(self._broker, self._port, self._keepalive)
-        self._client.loop_forever()
+        self._client.loop_start()
+        # Block until stop() sets the flag
+        self._stop_flag.wait()
+        self._client.loop_stop()
+        self._client.disconnect()
 
     def stop(self) -> None:
         """Cancel all active timers, release all pins, disconnect from broker."""

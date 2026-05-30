@@ -137,6 +137,7 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         classifier=ClassifierAgent(),
         publisher=publisher,
         engagement_log=engagement_log,
+        effector_manager=effector_manager,
         effectors=effector_manager.get_active_effectors(),
     )
 

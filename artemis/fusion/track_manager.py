@@ -152,7 +152,11 @@ class TrackManager:
 
         # --- 4b. Absorb layer-only detections into the nearest confirmed track ---
         for det in layer_only:
-            nearest = _find_nearest_track(self._records, max_dist=self._max_dist * 2)
+            # Extract bearing hint from the detection for proximity matching
+            bearing_deg = getattr(det, "bearing_deg", None)
+            nearest = _find_nearest_track(
+                self._records, max_dist=self._max_dist * 2, bearing_deg=bearing_deg
+            )
             if nearest:
                 nearest.track.sensor_layers.add(det.layer.value)
                 nearest.track.last_detections[det.layer.value] = det
@@ -268,7 +272,7 @@ def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
         # Optical gives a 2-D bounding box; range must come from another sensor.
         bx, by, bw, bh = det.bbox
         cx = bx + bw / 2
-        by + bh / 2
+        cy = by + bh / 2  # noqa: F841  — reserved for elevation estimate
         r = det.range_m
         # Normalise pixel centre to rough bearing offset (assume 60° horizontal FOV)
         bearing_deg = (cx - 320) / 320 * 30.0
@@ -285,14 +289,37 @@ def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
 def _find_nearest_track(
     records: dict[str, _TrackRecord],
     max_dist: float,
+    bearing_deg: Optional[float] = None,
 ) -> Optional[_TrackRecord]:
-    """Return the confirmed track nearest to origin (placeholder for now)."""
+    """
+    Return the confirmed track that best matches a layer-only detection.
+
+    If a bearing is available, selects the track whose angular position
+    (from origin) is closest to the detection's bearing.  Otherwise falls
+    back to the nearest confirmed track by Euclidean distance.
+    """
     best: Optional[_TrackRecord] = None
-    best_d = max_dist
+    best_score = float("inf")
+
     for rec in records.values():
-        if rec.track.status in (TrackStatus.CONFIRMED, TrackStatus.COASTED):
-            d = float(np.linalg.norm(rec.kf.position))
-            if d < best_d:
-                best_d = d
-                best = rec
+        if rec.track.status not in (TrackStatus.CONFIRMED, TrackStatus.COASTED):
+            continue
+        pos = rec.kf.position  # [x, y, z]
+        d = float(np.linalg.norm(pos))
+        if d > max_dist:
+            continue
+
+        if bearing_deg is not None and d > 0.1:
+            # Compare bearing angles: track bearing from origin
+            track_bearing = float(np.degrees(np.arctan2(pos[0], pos[1]))) % 360.0
+            angle_diff = abs(track_bearing - (bearing_deg % 360.0))
+            if angle_diff > 180:
+                angle_diff = 360 - angle_diff
+            score = angle_diff  # lower = better match
+        else:
+            score = d
+
+        if score < best_score:
+            best_score = score
+            best = rec
     return best

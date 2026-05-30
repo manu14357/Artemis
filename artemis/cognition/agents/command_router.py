@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+import time
 from typing import Sequence
 
 from artemis.core.logging import get_logger
@@ -49,7 +50,7 @@ class Command:
     x_m: float = 0.0
     y_m: float = 0.0
     z_m: float = 0.0
-    timestamp: float = field(default_factory=__import__("time").time)
+    timestamp: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {

@@ -92,12 +92,14 @@ def _mel_filterbank(
     n_freq = n_fft // 2 + 1
     fb = np.zeros((n_mels, n_freq))
     for m in range(1, n_mels + 1):
-        start, center, end = bin_points[m - 1], bin_points[m], bin_points[m + 1]
+        start = min(int(bin_points[m - 1]), n_freq - 1)
+        center = min(int(bin_points[m]), n_freq - 1)
+        end = min(int(bin_points[m + 1]), n_freq - 1)
         for k in range(start, center):
-            if center != start:
+            if center != start and k < n_freq:
                 fb[m - 1, k] = (k - start) / (center - start)
         for k in range(center, end):
-            if end != center:
+            if end != center and k < n_freq:
                 fb[m - 1, k] = (end - k) / (end - center)
     return fb
 
@@ -156,7 +158,7 @@ def _gcc_phat_tdoa(
     gcc_trimmed = np.concatenate([gcc[:half], gcc[n - half :]])
     lag = int(np.argmax(gcc_trimmed))
     if lag >= half:
-        lag -= n
+        lag -= len(gcc_trimmed)  # wrap around trimmed array, not original
     return lag / sr  # seconds
 
 
@@ -315,12 +317,14 @@ class AcousticClassifier(PerceptionDriver):
         else:
             mel_resized = mel
 
-        # Normalise to [-1, 1]
-        m = mel_resized.max()
-        if m > 0:
-            mel_norm = mel_resized / m
+        # Normalise to [0, 1] using min-max (handles negative log-mel values)
+        mel_min = mel_resized.min()
+        mel_max = mel_resized.max()
+        mel_range = mel_max - mel_min
+        if mel_range > 1e-8:
+            mel_norm = (mel_resized - mel_min) / mel_range
         else:
-            mel_norm = mel_resized
+            mel_norm = np.zeros_like(mel_resized)
         input_data = mel_norm[np.newaxis, :, :, np.newaxis].astype(np.float32)
 
         # TFLite inference

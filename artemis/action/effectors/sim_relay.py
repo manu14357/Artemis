@@ -88,6 +88,7 @@ class SimRelay:
         self.effector_id = effector_id
         self._broker = broker
         self._port = port
+        self._keepalive = keepalive
         self._topic = f"artemis/commands/{effector_id}"
         self._stop_flag = threading.Event()
 

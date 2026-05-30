@@ -22,6 +22,7 @@ Import guard:
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from typing import AsyncGenerator, Optional
 
@@ -248,7 +249,3 @@ class XM125Processor(PerceptionDriver):
             velocity_mps=round(velocity_mps, 3),
             bearing_deg=None,  # single radar cannot determine bearing
         )
-
-
-# lazy math import (used only inside blocking thread)
-import math  # noqa: E402

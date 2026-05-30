@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from artemis.action.effectors.effector_manager import EffectorManager
 from artemis.action.engagement_log import EngagementLog, EngagementRecord
 from artemis.cognition.agents.classifier_agent import ClassifierAgent
 from artemis.cognition.agents.command_router import Command, CommandRouter
@@ -66,6 +67,7 @@ class CognitionPipeline:
         publisher: MQTTPublisher,
         engagement_log: EngagementLog,
         effectors: Optional[list[str]] = None,
+        effector_manager: Optional[EffectorManager] = None,
         classifier: Optional[ClassifierAgent] = None,
     ) -> None:
         self._scorer = scorer
@@ -73,7 +75,9 @@ class CognitionPipeline:
         self._scheduler = scheduler
         self._publisher = publisher
         self._log = engagement_log
-        self._effectors: list[str] = effectors or ["sim-relay-01"]
+        # Prefer live manager; fall back to static list for backwards compat
+        self._effector_manager = effector_manager
+        self._static_effectors: list[str] = effectors or ["sim-relay-01"]
         self._classifier: Optional[ClassifierAgent] = classifier
 
     # ------------------------------------------------------------------
@@ -113,7 +117,12 @@ class CognitionPipeline:
             )
 
             # Step 3: Schedule 1:1 effector assignments
-            schedule = self._scheduler.assign(commands, self._effectors)
+            effectors = (
+                self._effector_manager.get_active_effectors()
+                if self._effector_manager
+                else self._static_effectors
+            )
+            schedule = self._scheduler.assign(commands, effectors)
 
             # Step 4 & 5: Dispatch + Log each assignment
             for effector_id, cmd in schedule.assignments.items():
