@@ -134,7 +134,7 @@ class OpticalEmulatorState:
             source=f"sim-optical-{self.drone_id}",
             timestamp=time.time(),
             confidence=round(confidence, 3),
-            range_m=round(range_m, 1) if range_m else None,
+            range_m=round(range_m, 1) if range_m is not None else None,
         )
 
 

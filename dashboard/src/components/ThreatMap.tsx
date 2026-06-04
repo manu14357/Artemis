@@ -329,7 +329,7 @@ export default function ThreatMap({
                 Track {selected.track_id.slice(-6)}
               </strong>
               <div>Tier {selected.tier} — {selected.drone_type}</div>
-              <div>Altitude: {Math.round(selected.position.y)} m</div>
+              <div>Altitude: {Math.round(selected.position.z)} m</div>
               <div>
                 Confidence:{' '}
                 {Math.round((selected.score ?? selected.confidence) * 100)}%

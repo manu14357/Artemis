@@ -151,10 +151,13 @@ class SimRelay:
         self,
         client: mqtt.Client,
         userdata: object,
-        flags: dict,
+        connect_flags: object,
         reason_code: object,
         properties: object = None,
     ) -> None:
+        if reason_code.value != 0:
+            log.error("SimRelay %s connect failed rc=%s", self.effector_id, reason_code)
+            return
         log.info("SimRelay %s connected to broker", self.effector_id)
         client.subscribe(self._topic, qos=1)
         log.info("SimRelay subscribed to %s", self._topic)

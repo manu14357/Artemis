@@ -296,7 +296,6 @@ class OpticalDetector(PerceptionDriver):
             and len(self._prev_pts) > 0
             and len(curr_pts) > 0
         ):
-            np.array(curr_pts, dtype=np.float32)
             lk_params = {
                 "winSize": (15, 15),
                 "maxLevel": 2,

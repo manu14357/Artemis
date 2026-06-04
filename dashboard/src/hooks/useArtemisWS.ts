@@ -28,6 +28,8 @@ export function useArtemisWS(onMaxRetries?: () => void) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const activeRef  = useRef(true);
   const attemptRef = useRef(0);
+  const onMaxRetriesRef = useRef(onMaxRetries);
+  onMaxRetriesRef.current = onMaxRetries;
 
   const clearHeartbeat = () => {
     if (heartbeatRef.current) {
@@ -50,7 +52,7 @@ export function useArtemisWS(onMaxRetries?: () => void) {
 
     // Give up after MAX_RETRIES consecutive failures
     if (attemptRef.current >= MAX_RETRIES) {
-      onMaxRetries?.();
+      onMaxRetriesRef.current?.();
       return;
     }
 

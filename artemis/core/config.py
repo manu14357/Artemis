@@ -73,6 +73,7 @@ class MQTTConfig:
     commands_topic_prefix: str = "artemis/commands"
     username: Optional[str] = None
     password: Optional[str] = None
+    tls_enabled: bool = False
 
 
 @dataclass
@@ -84,6 +85,8 @@ class APIConfig:
             "http://localhost:4173",
         ]
     )
+    require_auth: bool = False
+    rate_limit_per_min: int = 60
 
 
 @dataclass
@@ -95,6 +98,41 @@ class LoggingConfig:
 
 
 @dataclass
+class CognitionConfig:
+    classifier_timeout_ms: int = 50
+    predictor_timeout_ms: int = 20
+    scheduler_timeout_ms: int = 10
+    spoof_timeout_ms: int = 30
+    backend: str = "local"
+
+
+@dataclass
+class SimRelayConfig:
+    enabled: bool = True
+    effector_id: str = "sim-relay-01"
+
+
+@dataclass
+class GPIORelayConfig:
+    enabled: bool = False
+    effector_id: str = "gpio-relay-01"
+    pins: list = field(default_factory=lambda: [17, 27, 22, 23])
+    default_duration_s: float = 5.0
+
+
+@dataclass
+class EffectorsConfig:
+    sim_relay: SimRelayConfig = field(default_factory=SimRelayConfig)
+    gpio_relay: GPIORelayConfig = field(default_factory=GPIORelayConfig)
+
+
+@dataclass
+class EngagementLogConfig:
+    path: str = "logs/engagements.ndjson"
+    max_recent: int = 500
+
+
+@dataclass
 class HubConfig:
     id: str = "hub-01"
     host: str = "0.0.0.0"
@@ -103,6 +141,9 @@ class HubConfig:
     fusion: FusionConfig = field(default_factory=FusionConfig)
     api: APIConfig = field(default_factory=APIConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    cognition: CognitionConfig = field(default_factory=CognitionConfig)
+    effectors: EffectorsConfig = field(default_factory=EffectorsConfig)
+    engagement_log: EngagementLogConfig = field(default_factory=EngagementLogConfig)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "HubConfig":
@@ -112,11 +153,17 @@ class HubConfig:
         fusion_raw = raw.get("fusion", {})
         api_raw = raw.get("api", {})
         log_raw = raw.get("logging", {})
+        cognition_raw = raw.get("cognition", {})
+        effectors_raw = raw.get("effectors", {})
+        engagement_log_raw = raw.get("engagement_log", {})
 
         ekf_raw = fusion_raw.get("ekf", {})
         assign_raw = fusion_raw.get("assignment", {})
         swarm_raw = fusion_raw.get("swarm", {})
         confirm_raw = fusion_raw.get("confirmation", {})
+
+        sim_raw = effectors_raw.get("sim_relay", {})
+        gpio_raw = effectors_raw.get("gpio_relay", {})
 
         return cls(
             id=hub_raw.get("id", "hub-01"),
@@ -133,6 +180,7 @@ class HubConfig:
                 ),
                 username=mqtt_raw.get("username"),
                 password=mqtt_raw.get("password"),
+                tls_enabled=mqtt_raw.get("tls_enabled", False),
             ),
             fusion=FusionConfig(
                 ekf=EKFConfig(
@@ -160,12 +208,37 @@ class HubConfig:
                         "http://localhost:4173",
                     ],
                 ),
+                require_auth=api_raw.get("require_auth", False),
+                rate_limit_per_min=api_raw.get("rate_limit_per_min", 60),
             ),
             logging=LoggingConfig(
                 level=log_raw.get("level", "INFO"),
                 file=log_raw.get("file", "logs/artemis-hub.log"),
                 rotate_mb=log_raw.get("rotate_mb", 100),
                 keep_backups=log_raw.get("keep_backups", 10),
+            ),
+            cognition=CognitionConfig(
+                classifier_timeout_ms=cognition_raw.get("classifier_timeout_ms", 50),
+                predictor_timeout_ms=cognition_raw.get("predictor_timeout_ms", 20),
+                scheduler_timeout_ms=cognition_raw.get("scheduler_timeout_ms", 10),
+                spoof_timeout_ms=cognition_raw.get("spoof_timeout_ms", 30),
+                backend=cognition_raw.get("backend", "local"),
+            ),
+            effectors=EffectorsConfig(
+                sim_relay=SimRelayConfig(
+                    enabled=sim_raw.get("enabled", True),
+                    effector_id=sim_raw.get("effector_id", "sim-relay-01"),
+                ),
+                gpio_relay=GPIORelayConfig(
+                    enabled=gpio_raw.get("enabled", False),
+                    effector_id=gpio_raw.get("effector_id", "gpio-relay-01"),
+                    pins=gpio_raw.get("pins", [17, 27, 22, 23]),
+                    default_duration_s=gpio_raw.get("default_duration_s", 5.0),
+                ),
+            ),
+            engagement_log=EngagementLogConfig(
+                path=engagement_log_raw.get("path", "logs/engagements.ndjson"),
+                max_recent=engagement_log_raw.get("max_recent", 500),
             ),
         )
 
@@ -231,11 +304,20 @@ class SensorsConfig:
 
 
 @dataclass
+class NodeEffectorsConfig:
+    gpio_relay: GPIORelayConfig = field(default_factory=GPIORelayConfig)
+    rf_jammer: dict = field(default_factory=dict)
+    gps_spoofer: dict = field(default_factory=dict)
+
+
+@dataclass
 class NodeConfig:
     id: str = "node-01"
     location: NodeLocation = field(default_factory=NodeLocation)
     sensors: SensorsConfig = field(default_factory=SensorsConfig)
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    effectors: NodeEffectorsConfig = field(default_factory=NodeEffectorsConfig)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "NodeConfig":
@@ -244,11 +326,15 @@ class NodeConfig:
         loc_raw = node_raw.get("location", {})
         sensors_raw = raw.get("sensors", {})
         mqtt_raw = raw.get("mqtt", {})
+        logging_raw = raw.get("logging", {})
+        effectors_raw = raw.get("effectors", {})
 
         rf_raw = sensors_raw.get("rf", {})
         ac_raw = sensors_raw.get("acoustic", {})
         rd_raw = sensors_raw.get("radar", {})
         op_raw = sensors_raw.get("optical", {})
+
+        gpio_raw = effectors_raw.get("gpio_relay", {})
 
         return cls(
             id=node_raw.get("id", "node-01"),
@@ -299,5 +385,21 @@ class NodeConfig:
                 keepalive=mqtt_raw.get("keepalive", 60),
                 username=mqtt_raw.get("username"),
                 password=mqtt_raw.get("password"),
+            ),
+            logging=LoggingConfig(
+                level=logging_raw.get("level", "INFO"),
+                file=logging_raw.get("file", "logs/artemis-node.log"),
+                rotate_mb=logging_raw.get("rotate_mb", 50),
+                keep_backups=logging_raw.get("keep_backups", 5),
+            ),
+            effectors=NodeEffectorsConfig(
+                gpio_relay=GPIORelayConfig(
+                    enabled=gpio_raw.get("enabled", False),
+                    effector_id=gpio_raw.get("effector_id", "gpio-relay-01"),
+                    pins=gpio_raw.get("pins", [17, 27, 22, 23]),
+                    default_duration_s=gpio_raw.get("default_duration_s", 5.0),
+                ),
+                rf_jammer=effectors_raw.get("rf_jammer", {}),
+                gps_spoofer=effectors_raw.get("gps_spoofer", {}),
             ),
         )

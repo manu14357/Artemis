@@ -106,23 +106,32 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
 
     if sensors.acoustic.enabled:
         try:
+            from pathlib import Path
             from artemis.perception.acoustic.classifier import AcousticClassifier
 
-            drivers.append(
-                (
-                    SensorLayer.ACOUSTIC,
-                    AcousticClassifier(
-                        node_id,
-                        sample_rate=sensors.acoustic.sample_rate,
-                        channels=sensors.acoustic.channels,
-                        device_index=sensors.acoustic.device_index,
-                        window_ms=sensors.acoustic.window_ms,
-                        model_path=sensors.acoustic.model_path,
-                        confidence_threshold=sensors.acoustic.confidence_threshold,
-                    ),
+            model_path = Path(sensors.acoustic.model_path)
+            if not model_path.exists():
+                log.warning(
+                    "Acoustic driver disabled: model file not found at %s. "
+                    "Train it with: python scripts/train_acoustic_model.py",
+                    model_path.resolve(),
                 )
-            )
-            log.info("Acoustic driver enabled")
+            else:
+                drivers.append(
+                    (
+                        SensorLayer.ACOUSTIC,
+                        AcousticClassifier(
+                            node_id,
+                            sample_rate=sensors.acoustic.sample_rate,
+                            channels=sensors.acoustic.channels,
+                            device_index=sensors.acoustic.device_index,
+                            window_ms=sensors.acoustic.window_ms,
+                            model_path=sensors.acoustic.model_path,
+                            confidence_threshold=sensors.acoustic.confidence_threshold,
+                        ),
+                    )
+                )
+                log.info("Acoustic driver enabled")
         except ImportError as exc:
             log.warning("Acoustic driver skipped: %s", exc)
 
@@ -271,7 +280,14 @@ async def _async_main(cfg: NodeConfig, test_mode: bool) -> int:
     )
     try:
         await asyncio.to_thread(publisher.connect)
-        log.info("MQTT connected to %s:%d", cfg.mqtt.broker, cfg.mqtt.port)
+        for _ in range(30):
+            if publisher.connected:
+                break
+            await asyncio.sleep(0.1)
+        if publisher.connected:
+            log.info("MQTT connected to %s:%d", cfg.mqtt.broker, cfg.mqtt.port)
+        else:
+            log.warning("MQTT connection timeout — running in offline mode")
     except Exception as exc:
         log.warning("MQTT connect failed (%s) — running in offline mode", exc)
 
@@ -379,7 +395,12 @@ def main() -> int:
         return 1
 
     cfg = apply_node_env_overrides(cfg)
-    setup_logging()
+    setup_logging(
+        level=cfg.logging.level,
+        log_file=cfg.logging.file,
+        rotate_mb=cfg.logging.rotate_mb,
+        keep_backups=cfg.logging.keep_backups,
+    )
     for _w in validate_node_config(cfg):
         log.warning("[config] %s", _w)
 

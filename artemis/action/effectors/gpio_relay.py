@@ -147,17 +147,18 @@ class GPIORelayEffector:
     # MQTT callbacks
     # ------------------------------------------------------------------
 
-    def _on_connect(self, client, userdata, flags, rc, properties=None) -> None:
-        if rc == 0:
+    def _on_connect(self, client, userdata, connect_flags, reason_code, properties=None) -> None:
+        if reason_code.value == 0:
             client.subscribe(self._topic, qos=1)
             log.info("GPIORelayEffector connected effector_id=%s", self.effector_id)
         else:
-            log.error("GPIO relay MQTT connect failed rc=%d", rc)
+            log.error("GPIO relay MQTT connect failed rc=%s", reason_code)
 
     def _on_disconnect(
-        self, client, userdata, rc, properties=None, reason=None
+        self, client, userdata, disconnect_flags, reason_code, properties=None
     ) -> None:
-        log.info("GPIO relay disconnected rc=%d", rc)
+        rc = getattr(reason_code, "value", reason_code)
+        log.info("GPIO relay disconnected rc=%s", rc)
 
     def _on_message(self, client, userdata, msg) -> None:
         try:

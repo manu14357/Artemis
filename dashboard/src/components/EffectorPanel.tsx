@@ -32,6 +32,11 @@ export default function EffectorPanel({ threats }: Props) {
   const effectiveEffector = selectedEffector || effectors[0] || '';
 
   async function sendCommand(action: string) {
+    if (!effectiveEffector) {
+      setLastResult('No effector available');
+      setPendingAction(null);
+      return;
+    }
     setLoading(true);
     setLastResult(null);
     setPendingAction(null);

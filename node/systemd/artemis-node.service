@@ -1,8 +1,7 @@
 [Unit]
 Description=ARTEMIS Node Daemon
-After=network-online.target mosquitto.service
+After=network-online.target
 Wants=network-online.target
-Requires=mosquitto.service
 
 [Service]
 Type=notify

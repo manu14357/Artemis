@@ -111,18 +111,31 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         await asyncio.sleep(0.1)
 
     # Engagement log
-    engagement_log = EngagementLog(path="logs/engagements.ndjson")
+    engagement_log = EngagementLog(path=cfg.engagement_log.path)
 
     # Effector manager — register SimRelay by default
     effector_manager = EffectorManager()
-    sim_relay = SimRelay(
-        effector_id="sim-relay-01",
-        broker=cfg.mqtt.broker,
-        port=cfg.mqtt.port,
-        username=cfg.mqtt.username,
-        password=cfg.mqtt.password,
-    )
-    effector_manager.register(sim_relay)
+    if cfg.effectors.sim_relay.enabled:
+        sim_relay = SimRelay(
+            effector_id=cfg.effectors.sim_relay.effector_id,
+            broker=cfg.mqtt.broker,
+            port=cfg.mqtt.port,
+            username=cfg.mqtt.username,
+            password=cfg.mqtt.password,
+        )
+        effector_manager.register(sim_relay)
+    if cfg.effectors.gpio_relay.enabled:
+        from artemis.action.effectors.gpio_relay import GPIORelayEffector
+
+        gpio_relay = GPIORelayEffector(
+            effector_id=cfg.effectors.gpio_relay.effector_id,
+            broker=cfg.mqtt.broker,
+            port=cfg.mqtt.port,
+            pins=cfg.effectors.gpio_relay.pins,
+            username=cfg.mqtt.username,
+            password=cfg.mqtt.password,
+        )
+        effector_manager.register(gpio_relay)
     effector_manager.start_all()
 
     # Metrics singleton — mark hub as up
@@ -161,7 +174,7 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         publisher=publisher,
         engagement_log=engagement_log,
         effector_manager=effector_manager,
-        rate_limit_per_min=getattr(cfg.api, "rate_limit_per_min", 60),
+        rate_limit_per_min=cfg.api.rate_limit_per_min,
     )
     register_websocket(app, threat_map, ws_push_rate_hz=cfg.api.ws_push_rate_hz)
 
@@ -170,7 +183,7 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         host=cfg.host,
         port=cfg.api_port,
         log_level="warning",
-        loop="none",
+        loop="auto",
     )
     server = uvicorn.Server(server_cfg)
 

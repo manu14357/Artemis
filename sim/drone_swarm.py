@@ -163,8 +163,54 @@ def load_scenario(path: pathlib.Path) -> list[Drone]:
     spread_m = swarm_cfg.get("spread_m", 200)
     formation = swarm_cfg.get("formation", "random")
     default_speed = swarm_cfg.get("speed_mps", 10.0)
+    swarm_count = swarm_cfg.get("count", 0)
 
-    for i, entry in enumerate(scenario.get("drones", [])):
+    # Procedural generation if count is specified and no explicit drone list
+    entries = scenario.get("drones", [])
+    if not entries and swarm_count > 0:
+        proc = scenario.get("procedural_generation", {})
+        models = proc.get("models", [{"name": "unknown", "weight": 1.0, "rf_freq": 2437000000}])
+        power_db_range = proc.get("power_db_range", [-55, -40])
+        total_weight = sum(m.get("weight", 1.0) for m in models)
+        for i in range(swarm_count):
+            # Weighted random model selection
+            r = random.uniform(0, total_weight)
+            cum = 0.0
+            selected = models[0]
+            for m in models:
+                cum += m.get("weight", 1.0)
+                if r <= cum:
+                    selected = m
+                    break
+            angle = (2 * math.pi * i) / max(swarm_count, 1)
+            fuzz = random.uniform(0.5, 1.0)
+            dlat = math.cos(angle) * spread_m * fuzz / _EARTH_R_M
+            dlon = (
+                math.sin(angle)
+                * spread_m
+                * fuzz
+                / (_EARTH_R_M * math.cos(math.radians(center_lat)))
+            )
+            entries.append({
+                "id": f"drone-{i:04d}",
+                "model": selected.get("name", "unknown"),
+                "rf_freq": int(selected.get("rf_freq", 2437000000)),
+                "start": {
+                    "lat": center_lat + math.degrees(dlat),
+                    "lon": center_lon + math.degrees(dlon),
+                    "alt_m": center_alt + random.uniform(-20, 20),
+                },
+                "waypoints": [
+                    {
+                        "lat": center_lat,
+                        "lon": center_lon,
+                        "alt_m": center_alt,
+                        "speed_mps": default_speed,
+                    }
+                ],
+            })
+
+    for i, entry in enumerate(entries):
         drone_id = entry.get("id", f"drone-{i:03d}")
         model = entry.get("model", "unknown")
         freq = int(entry.get("rf_freq", 2437000000))

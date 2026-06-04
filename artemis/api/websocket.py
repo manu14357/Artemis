@@ -80,13 +80,13 @@ def register_websocket(app, threat_map, ws_push_rate_hz: float = 10.0) -> None:
         except WebSocketDisconnect:
             _manager.disconnect(ws)
 
-    # register_websocket() is called after the app is constructed, so we
-    # can't use the lifespan= parameter.  app.router.on_startup is the
-    # non-deprecated equivalent of @app.on_event("startup") for this pattern.
-    async def _start_broadcaster():
-        asyncio.create_task(_broadcaster(threat_map, push_interval))
-
-    app.router.on_startup.append(_start_broadcaster)
+    # Start broadcaster directly in the current running loop.
+    # Avoids deprecated app.router.on_startup / @app.on_event hooks.
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_broadcaster(threat_map, push_interval))
+    except RuntimeError:
+        pass  # no running loop — broadcaster will not start (should not happen in hub/main.py)
 
 
 async def _broadcaster(threat_map, interval: float) -> None:

@@ -249,4 +249,4 @@ class TestSwarmDetection:
             min_swarm_samples=cfg.fusion.swarm.min_samples,
         )
         for threat in tmap.get_snapshot():
-            assert threat.get("swarm_size", 1) >= 1
+            assert threat.get("swarm_id") is None

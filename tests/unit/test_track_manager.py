@@ -62,12 +62,15 @@ class TestTrackManager:
         det = _radar(10.0, 20.0, 50.0)
         for _ in range(5):
             self.mgr.update([det])
-        # Coast until dropped
+        # Coast until dropped (max_coast_frames=3)
+        for _ in range(3):
+            tracks = self.mgr.update([])
+        coasted = [t for t in tracks if t.status == TrackStatus.COASTED]
+        assert len(coasted) > 0
+        # After more empty frames, track should be dropped (removed from active list)
         for _ in range(10):
             tracks = self.mgr.update([])
-        [t for t in tracks if t.status == TrackStatus.DROPPED]
-        # After many empty frames, track should be dropped (removed from active list)
-        # all_tracks includes dropped until next cycle
+        assert len(tracks) == 0
         assert len(self.mgr.get_confirmed_tracks()) == 0
 
     def test_multiple_targets_tracked_independently(self):

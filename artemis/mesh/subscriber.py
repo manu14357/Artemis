@@ -191,9 +191,9 @@ class MQTTSubscriber:
     # paho callbacks (called from paho background thread)
     # ------------------------------------------------------------------
 
-    def _on_connect(self, client, userdata, flags, rc, properties=None) -> None:
-        if rc != 0:
-            log.error("MQTT subscriber connect failed rc=%d", rc)
+    def _on_connect(self, client, userdata, connect_flags, reason_code, properties=None) -> None:
+        if reason_code.value != 0:
+            log.error("MQTT subscriber connect failed rc=%s", reason_code)
             return
         self._connected = True
         log.info("MQTT subscriber connected broker=%s", self._broker)

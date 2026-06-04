@@ -117,7 +117,7 @@ class PredictorAgent:
                 t_clamped = min(t_star, self._horizon_s)
                 cpa_x = x + vx * t_clamped
                 cpa_y = y + vy * t_clamped
-                tti = t_clamped if t_star <= self._horizon_s else None
+                tti = t_clamped if t_star <= self._horizon_s else float('inf')
 
         # 3. Impact probability
         cpa_dist = math.sqrt((cpa_x - ox) ** 2 + (cpa_y - oy) ** 2)

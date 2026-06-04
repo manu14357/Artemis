@@ -46,7 +46,8 @@ def setup_logging(
 
     # Avoid adding duplicate handlers on repeated calls (e.g. during tests)
     if root.handlers:
-        return
+        for h in root.handlers:
+            root.removeHandler(h)
 
     fmt = _JSONFormatter()
 

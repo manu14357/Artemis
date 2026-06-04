@@ -35,10 +35,12 @@ log = get_logger("mesh.publisher")
 
 def _serialise(obj: Any) -> str:
     """Convert a dataclass (or dict) to a compact JSON string."""
-    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-        d = dataclasses.asdict(obj)
-    elif isinstance(obj, dict):
+    if isinstance(obj, dict):
         d = obj
+    elif hasattr(obj, "to_dict") and callable(obj.to_dict):
+        d = obj.to_dict()
+    elif dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        d = dataclasses.asdict(obj)
     else:
         d = {"value": str(obj)}
 
@@ -150,8 +152,8 @@ class MQTTPublisher:
         if result.rc != mqtt.MQTT_ERR_SUCCESS:
             log.error("publish failed topic=%s rc=%d", topic, result.rc)
 
-    def _on_connect(self, client, userdata, flags, rc, properties=None) -> None:
-        if rc == 0:
+    def _on_connect(self, client, userdata, connect_flags, reason_code, properties=None) -> None:
+        if reason_code.value == 0:
             self._connected = True
             log.info(
                 "MQTT publisher connected broker=%s node_id=%s",
@@ -159,12 +161,13 @@ class MQTTPublisher:
                 self.node_id,
             )
         else:
-            log.error("MQTT publisher connect failed rc=%d", rc)
+            log.error("MQTT publisher connect failed rc=%s", reason_code)
 
-    def _on_disconnect(self, client, userdata, rc, properties=None) -> None:
+    def _on_disconnect(self, client, userdata, disconnect_flags, reason_code, properties=None) -> None:
         self._connected = False
-        if rc != 0:
-            log.warning("MQTT publisher unexpected disconnect rc=%d", rc)
+        rc = getattr(reason_code, "value", reason_code)
+        if rc is not None and rc != 0:
+            log.warning("MQTT publisher unexpected disconnect rc=%s", reason_code)
 
     def _on_publish(self, client, userdata, mid, properties=None) -> None:
         pass  # no-op; retained for debug hook
