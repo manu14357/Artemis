@@ -169,7 +169,7 @@ class MQTTPublisher:
         if rc is not None and rc != 0:
             log.warning("MQTT publisher unexpected disconnect rc=%s", reason_code)
 
-    def _on_publish(self, client, userdata, mid, properties=None) -> None:
+    def _on_publish(self, client, userdata, mid, reason_code=None, properties=None) -> None:
         pass  # no-op; retained for debug hook
 
     @property

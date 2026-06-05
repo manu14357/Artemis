@@ -421,15 +421,26 @@ async def _main_async() -> None:
     args = parse_args()
     setup_logging(level=args.log_level)
 
-    # Override node position from config if provided
+    # Override node position from config if provided; fall back to default config
     node_lat, node_lon, node_alt = args.node_lat, args.node_lon, args.node_alt
-    if args.node_config:
+    _config_path = args.node_config or "node/config/node_default.yaml"
+    _config_file = pathlib.Path(_config_path)
+    if _config_file.exists():
         from artemis.core.config import NodeConfig
 
-        cfg = NodeConfig.from_yaml(args.node_config)
+        cfg = NodeConfig.from_yaml(str(_config_file))
         node_lat = cfg.location.lat
         node_lon = cfg.location.lon
         node_alt = cfg.location.alt_m
+        log.info(
+            "node location loaded from %s lat=%.4f lon=%.4f alt=%.1fm",
+            _config_file,
+            node_lat,
+            node_lon,
+            node_alt,
+        )
+    elif args.node_config:
+        log.error("node config not found: %s", args.node_config)
 
     scenario_path = pathlib.Path(args.scenario)
     drones = load_scenario(scenario_path)
