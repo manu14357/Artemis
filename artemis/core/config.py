@@ -5,9 +5,11 @@ YAML config loader with typed wrapper classes for hub and node configuration.
 
 from __future__ import annotations
 
+import threading
+import time as _time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import yaml
 
@@ -121,9 +123,36 @@ class GPIORelayConfig:
 
 
 @dataclass
+class AudioDeterrentConfig:
+    enabled: bool = False
+    effector_id: str = "audio-deterrent-01"
+    device_index: int = 0
+    sample_rate: int = 48000
+    max_duration_s: float = 30.0
+    default_volume_db: float = -6.0
+    sounds_dir: str = "assets/audio_deterrent"
+
+
+@dataclass
+class VisualDeterrentConfig:
+    enabled: bool = False
+    effector_id: str = "visual-deterrent-01"
+    strobe_pin: int = 22
+    laser_pin: int = 23
+    strobe_frequency_hz: float = 10.0
+    strobe_duty_cycle: float = 0.5
+    laser_pwm_frequency_hz: int = 1000
+    laser_max_duty_cycle: float = 0.5
+    max_duration_s: float = 60.0
+    cooldown_s: float = 5.0
+
+
+@dataclass
 class EffectorsConfig:
     sim_relay: SimRelayConfig = field(default_factory=SimRelayConfig)
     gpio_relay: GPIORelayConfig = field(default_factory=GPIORelayConfig)
+    audio_deterrent: AudioDeterrentConfig = field(default_factory=AudioDeterrentConfig)
+    visual_deterrent: VisualDeterrentConfig = field(default_factory=VisualDeterrentConfig)
 
 
 @dataclass
@@ -133,10 +162,18 @@ class EngagementLogConfig:
 
 
 @dataclass
+class NodeLocation:
+    lat: float = 0.0
+    lon: float = 0.0
+    alt_m: float = 0.0
+
+
+@dataclass
 class HubConfig:
     id: str = "hub-01"
     host: str = "0.0.0.0"
     api_port: int = 8080
+    location: NodeLocation = field(default_factory=NodeLocation)
     mqtt: MQTTConfig = field(default_factory=MQTTConfig)
     fusion: FusionConfig = field(default_factory=FusionConfig)
     api: APIConfig = field(default_factory=APIConfig)
@@ -149,6 +186,7 @@ class HubConfig:
     def from_yaml(cls, path: str | Path) -> "HubConfig":
         raw = load_yaml(path)
         hub_raw = raw.get("hub", {})
+        loc_raw = hub_raw.get("location", {})
         mqtt_raw = raw.get("mqtt", {})
         fusion_raw = raw.get("fusion", {})
         api_raw = raw.get("api", {})
@@ -164,11 +202,18 @@ class HubConfig:
 
         sim_raw = effectors_raw.get("sim_relay", {})
         gpio_raw = effectors_raw.get("gpio_relay", {})
+        audio_raw = effectors_raw.get("audio_deterrent", {})
+        visual_raw = effectors_raw.get("visual_deterrent", {})
 
         return cls(
             id=hub_raw.get("id", "hub-01"),
             host=hub_raw.get("host", "0.0.0.0"),
             api_port=hub_raw.get("api_port", 8080),
+            location=NodeLocation(
+                lat=loc_raw.get("lat", 0.0),
+                lon=loc_raw.get("lon", 0.0),
+                alt_m=loc_raw.get("alt_m", 0.0),
+            ),
             mqtt=MQTTConfig(
                 broker=mqtt_raw.get("broker", "127.0.0.1"),
                 port=mqtt_raw.get("port", 1883),
@@ -235,6 +280,27 @@ class HubConfig:
                     pins=gpio_raw.get("pins", [17, 27, 22, 23]),
                     default_duration_s=gpio_raw.get("default_duration_s", 5.0),
                 ),
+                audio_deterrent=AudioDeterrentConfig(
+                    enabled=audio_raw.get("enabled", False),
+                    effector_id=audio_raw.get("effector_id", "audio-deterrent-01"),
+                    device_index=audio_raw.get("device_index", 0),
+                    sample_rate=audio_raw.get("sample_rate", 48000),
+                    max_duration_s=audio_raw.get("max_duration_s", 30.0),
+                    default_volume_db=audio_raw.get("default_volume_db", -6.0),
+                    sounds_dir=audio_raw.get("sounds_dir", "assets/audio_deterrent"),
+                ),
+                visual_deterrent=VisualDeterrentConfig(
+                    enabled=visual_raw.get("enabled", False),
+                    effector_id=visual_raw.get("effector_id", "visual-deterrent-01"),
+                    strobe_pin=visual_raw.get("strobe_pin", 22),
+                    laser_pin=visual_raw.get("laser_pin", 23),
+                    strobe_frequency_hz=visual_raw.get("strobe_frequency_hz", 10.0),
+                    strobe_duty_cycle=visual_raw.get("strobe_duty_cycle", 0.5),
+                    laser_pwm_frequency_hz=visual_raw.get("laser_pwm_frequency_hz", 1000),
+                    laser_max_duty_cycle=visual_raw.get("laser_max_duty_cycle", 0.5),
+                    max_duration_s=visual_raw.get("max_duration_s", 60.0),
+                    cooldown_s=visual_raw.get("cooldown_s", 5.0),
+                ),
             ),
             engagement_log=EngagementLogConfig(
                 path=engagement_log_raw.get("path", "logs/engagements.ndjson"),
@@ -246,13 +312,6 @@ class HubConfig:
 # ---------------------------------------------------------------------------
 # Node config
 # ---------------------------------------------------------------------------
-
-
-@dataclass
-class NodeLocation:
-    lat: float = 0.0
-    lon: float = 0.0
-    alt_m: float = 0.0
 
 
 @dataclass
@@ -289,10 +348,16 @@ class RadarSensorConfig:
 @dataclass
 class OpticalSensorConfig:
     enabled: bool = True
+    detector: str = "classical"  # "classical" or "yolo"
     resolution: list = field(default_factory=lambda: [640, 480])
     fps: int = 30
+    # Classical detector params
     mog2_learning_rate: float = 0.005
     min_blob_area: int = 80
+    # YOLO detector params
+    yolo_model_path: str = "models/yolov8n_drone"
+    yolo_confidence_threshold: float = 0.4
+    yolo_backend: str = "auto"  # "ncnn", "onnx", "ultralytics", "auto"
 
 
 @dataclass
@@ -373,10 +438,14 @@ class NodeConfig:
                 ),
                 optical=OpticalSensorConfig(
                     enabled=op_raw.get("enabled", True),
+                    detector=op_raw.get("detector", "classical"),
                     resolution=op_raw.get("resolution", [640, 480]),
                     fps=op_raw.get("fps", 30),
                     mog2_learning_rate=op_raw.get("mog2_learning_rate", 0.005),
                     min_blob_area=op_raw.get("min_blob_area", 80),
+                    yolo_model_path=op_raw.get("yolo_model_path", "models/yolov8n_drone"),
+                    yolo_confidence_threshold=op_raw.get("yolo_confidence_threshold", 0.4),
+                    yolo_backend=op_raw.get("yolo_backend", "auto"),
                 ),
             ),
             mqtt=MQTTConfig(
@@ -403,3 +472,76 @@ class NodeConfig:
                 gps_spoofer=effectors_raw.get("gps_spoofer", {}),
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# Config hot-reload watcher (polling-based, no external deps)
+# ---------------------------------------------------------------------------
+
+
+class ConfigWatcher:
+    """
+    Watches a YAML config file for changes and invokes a callback on reload.
+
+    Uses mtime polling at ``poll_interval_s`` (default 2 s).
+    Runs in a daemon thread — safe to start without affecting process lifecycle.
+
+    Usage
+    -----
+        def on_reload(path: Path) -> None:
+            new_cfg = HubConfig.from_yaml(path)
+            # apply changes...
+
+        watcher = ConfigWatcher("hub/config/hub_default.yaml", on_reload)
+        watcher.start()   # non-blocking
+        ...
+        watcher.stop()    # clean shutdown
+    """
+
+    def __init__(
+        self,
+        path: str | Path,
+        callback: Callable[[Path], None],
+        poll_interval_s: float = 2.0,
+    ) -> None:
+        self._path = Path(path)
+        self._callback = callback
+        self._poll_interval = poll_interval_s
+        self._last_mtime: float = 0.0
+        self._thread: threading.Thread | None = None
+        self._running = False
+
+    def start(self) -> None:
+        """Start the background watcher thread."""
+        if self._running:
+            return
+        try:
+            self._last_mtime = self._path.stat().st_mtime
+        except FileNotFoundError:
+            self._last_mtime = 0.0
+        self._running = True
+        self._thread = threading.Thread(target=self._poll, daemon=True, name="config-watcher")
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop the watcher thread (best-effort)."""
+        self._running = False
+
+    def _poll(self) -> None:
+        while self._running:
+            _time.sleep(self._poll_interval)
+            try:
+                mtime = self._path.stat().st_mtime
+                if mtime != self._last_mtime:
+                    self._last_mtime = mtime
+                    try:
+                        self._callback(self._path)
+                    except Exception as exc:  # noqa: BLE001
+                        # Never let callback errors kill the watcher thread
+                        import logging as _logging
+                        _logging.getLogger("artemis.core.config_watcher").error(
+                            "Config reload callback error: %s", exc
+                        )
+            except FileNotFoundError:
+                pass  # File temporarily missing during atomic writes
+

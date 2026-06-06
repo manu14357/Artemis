@@ -35,7 +35,7 @@ from artemis.cognition.agents.command_router import CommandRouter
 from artemis.cognition.agents.scheduler_agent import SchedulerAgent
 from artemis.cognition.agents.threat_scorer import ThreatScorer
 from artemis.cognition.pipeline import CognitionPipeline
-from artemis.core.config import HubConfig
+from artemis.core.config import ConfigWatcher, HubConfig
 from artemis.core.config_validator import apply_hub_env_overrides, validate_hub_config
 from artemis.core.logging import get_logger, setup_logging
 from artemis.fusion.threat_map import ThreatMap
@@ -77,7 +77,7 @@ def _start_mosquitto() -> subprocess.Popen | None:
         return None
 
 
-async def _run(cfg: HubConfig, manage_broker: bool) -> None:
+async def _run(cfg: HubConfig, manage_broker: bool, cfg_path: pathlib.Path | None = None) -> None:
     mosquitto_proc: subprocess.Popen | None = None
 
     if manage_broker:
@@ -136,6 +136,47 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
             password=cfg.mqtt.password,
         )
         effector_manager.register(gpio_relay)
+    if cfg.effectors.audio_deterrent.enabled:
+        from artemis.action.effectors.audio_deterrent import AudioDeterrent, AudioConfig
+
+        audio_config = AudioConfig(
+            device_index=cfg.effectors.audio_deterrent.device_index,
+            sample_rate=cfg.effectors.audio_deterrent.sample_rate,
+            max_duration_s=cfg.effectors.audio_deterrent.max_duration_s,
+            default_volume_db=cfg.effectors.audio_deterrent.default_volume_db,
+            sounds_dir=cfg.effectors.audio_deterrent.sounds_dir,
+        )
+        audio_deterrent = AudioDeterrent(
+            effector_id=cfg.effectors.audio_deterrent.effector_id,
+            broker=cfg.mqtt.broker,
+            port=cfg.mqtt.port,
+            username=cfg.mqtt.username,
+            password=cfg.mqtt.password,
+            config=audio_config,
+        )
+        effector_manager.register(audio_deterrent)
+    if cfg.effectors.visual_deterrent.enabled:
+        from artemis.action.effectors.visual_deterrent import VisualDeterrent, VisualConfig
+
+        visual_config = VisualConfig(
+            strobe_pin=cfg.effectors.visual_deterrent.strobe_pin,
+            laser_pin=cfg.effectors.visual_deterrent.laser_pin,
+            strobe_frequency_hz=cfg.effectors.visual_deterrent.strobe_frequency_hz,
+            strobe_duty_cycle=cfg.effectors.visual_deterrent.strobe_duty_cycle,
+            laser_pwm_frequency_hz=cfg.effectors.visual_deterrent.laser_pwm_frequency_hz,
+            laser_max_duty_cycle=cfg.effectors.visual_deterrent.laser_max_duty_cycle,
+            max_duration_s=cfg.effectors.visual_deterrent.max_duration_s,
+            cooldown_s=cfg.effectors.visual_deterrent.cooldown_s,
+        )
+        visual_deterrent = VisualDeterrent(
+            effector_id=cfg.effectors.visual_deterrent.effector_id,
+            broker=cfg.mqtt.broker,
+            port=cfg.mqtt.port,
+            username=cfg.mqtt.username,
+            password=cfg.mqtt.password,
+            config=visual_config,
+        )
+        effector_manager.register(visual_deterrent)
     effector_manager.start_all()
 
     # Metrics singleton — mark hub as up
@@ -165,6 +206,26 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         pipeline=cognition_pipeline,
     )
     aggregator.start(loop=loop)
+
+    # Config hot-reload watcher — updates fusion thresholds on YAML change
+    _cfg_path = cfg_path
+
+    def _on_config_change(path) -> None:
+        try:
+            new_cfg = HubConfig.from_yaml(path)
+            new_cfg = apply_hub_env_overrides(new_cfg)
+            track_manager._max_coast = new_cfg.fusion.ekf.max_coast_frames
+            track_manager._max_dist = new_cfg.fusion.assignment.max_distance_m
+            track_manager._min_layers = new_cfg.fusion.confirmation.min_sensor_layers
+            log.info("Config hot-reloaded from %s", path)
+        except Exception as exc:
+            log.error("Config reload failed: %s", exc)
+
+    config_watcher: ConfigWatcher | None = None
+    if _cfg_path and _cfg_path.exists():
+        config_watcher = ConfigWatcher(_cfg_path, _on_config_change)
+        config_watcher.start()
+        log.info("Config watcher started, watching %s", _cfg_path)
 
     # FastAPI (publisher + engagement_log + effector_manager wired in)
     app = create_app(
@@ -207,6 +268,8 @@ async def _run(cfg: HubConfig, manage_broker: bool) -> None:
         aggregator.stop()
         effector_manager.stop_all()
         publisher.disconnect()
+        if config_watcher:
+            config_watcher.stop()
         if mosquitto_proc:
             mosquitto_proc.terminate()
             try:
@@ -236,7 +299,7 @@ def main() -> int:
         log.warning("[config] %s", _w)
 
     try:
-        asyncio.run(_run(cfg, manage_broker=not args.no_broker))
+        asyncio.run(_run(cfg, manage_broker=not args.no_broker, cfg_path=pathlib.Path(cfg_path)))
     except KeyboardInterrupt:
         pass
     return 0

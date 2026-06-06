@@ -244,6 +244,11 @@ def _detection_to_xyz(det: Detection) -> Optional[np.ndarray]:
     Returns None for detections that don't carry enough position information
     (e.g. an RF detection with only a bearing but no range).
     """
+    # Check for triangulated position (set by MeshAggregator)
+    if hasattr(det, '_triangulated_pos'):
+        pos = det._triangulated_pos
+        return np.array([pos[0], pos[1], pos[2]])
+
     if isinstance(det, RadarDetection):
         # Radar gives range and optionally bearing.
         r = det.range_m

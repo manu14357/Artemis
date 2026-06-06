@@ -158,22 +158,41 @@ def _build_drivers(cfg: NodeConfig) -> list[tuple[SensorLayer, PerceptionDriver]
 
     if sensors.optical.enabled:
         try:
-            from artemis.perception.optical.detector import OpticalDetector
+            from artemis.perception.optical import OpticalDetector, YOLODetector
 
             resolution = tuple(sensors.optical.resolution[:2])
-            drivers.append(
-                (
-                    SensorLayer.OPTICAL,
-                    OpticalDetector(
-                        node_id,
-                        resolution=resolution,
-                        fps=sensors.optical.fps,
-                        mog2_learning_rate=sensors.optical.mog2_learning_rate,
-                        min_blob_area=sensors.optical.min_blob_area,
-                    ),
+            detector_type = getattr(sensors.optical, 'detector', 'classical')
+
+            if detector_type == 'yolo':
+                drivers.append(
+                    (
+                        SensorLayer.OPTICAL,
+                        YOLODetector(
+                            node_id,
+                            model_path=sensors.optical.yolo_model_path,
+                            input_size=resolution,
+                            confidence_threshold=sensors.optical.yolo_confidence_threshold,
+                            fps=sensors.optical.fps,
+                            resolution=resolution,
+                            backend=sensors.optical.yolo_backend,
+                        ),
+                    )
                 )
-            )
-            log.info("Optical driver enabled")
+                log.info("Optical driver enabled (YOLOv8)")
+            else:
+                drivers.append(
+                    (
+                        SensorLayer.OPTICAL,
+                        OpticalDetector(
+                            node_id,
+                            resolution=resolution,
+                            fps=sensors.optical.fps,
+                            mog2_learning_rate=sensors.optical.mog2_learning_rate,
+                            min_blob_area=sensors.optical.min_blob_area,
+                        ),
+                    )
+                )
+                log.info("Optical driver enabled (Classical MOG2)")
         except ImportError as exc:
             log.warning("Optical driver skipped: %s", exc)
 

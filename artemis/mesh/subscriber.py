@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from typing import Optional
 
 import paho.mqtt.client as mqtt
@@ -171,6 +172,9 @@ class MQTTSubscriber:
         self._port = port
         self._keepalive = keepalive
         self._connected = False
+        # Reconnect state
+        self._reconnect_delay: float = 1.0
+        self._intentional_disconnect: bool = False
 
     # ------------------------------------------------------------------
     # Connection management
@@ -179,10 +183,12 @@ class MQTTSubscriber:
     def connect(self, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
         """Connect to broker and start the paho background thread."""
         self._loop = loop or asyncio.get_running_loop()
+        self._intentional_disconnect = False
         self._client.connect(self._broker, self._port, self._keepalive)
         self._client.loop_start()
 
     def disconnect(self) -> None:
+        self._intentional_disconnect = True
         self._client.loop_stop()
         self._client.disconnect()
         self._connected = False
@@ -209,12 +215,33 @@ class MQTTSubscriber:
     ) -> None:
         """paho-mqtt v2 + MQTTv5 signature: 3rd arg is DisconnectFlags, not rc."""
         self._connected = False
-        # reason_code is a ReasonCode object; rc == 0 means normal disconnect.
         rc = getattr(reason_code, "value", reason_code)
-        if rc is not None and rc != 0:
+        if rc is not None and rc != 0 and not self._intentional_disconnect:
             log.warning(
-                "MQTT subscriber unexpected disconnect reason_code=%s", reason_code
+                "MQTT subscriber unexpected disconnect reason_code=%s — reconnecting in %.1fs",
+                reason_code,
+                self._reconnect_delay,
             )
+            self._schedule_reconnect()
+
+    def _schedule_reconnect(self) -> None:
+        """Schedule a reconnect attempt with exponential backoff (max 30 s)."""
+        delay = self._reconnect_delay
+        self._reconnect_delay = min(self._reconnect_delay * 2.0, 30.0)
+        t = threading.Timer(delay, self._attempt_reconnect)
+        t.daemon = True
+        t.start()
+
+    def _attempt_reconnect(self) -> None:
+        if self._intentional_disconnect:
+            return
+        try:
+            self._client.reconnect()
+            self._reconnect_delay = 1.0  # reset on success
+            log.info("MQTT subscriber reconnected to broker=%s", self._broker)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("MQTT subscriber reconnect failed: %s", exc)
+            self._schedule_reconnect()
 
     def _on_message(self, client, userdata, msg: mqtt.MQTTMessage) -> None:
         """Parse topic, deserialise payload, push to EventBus / queue."""

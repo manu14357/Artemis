@@ -5,6 +5,7 @@ RTL-SDR hardware driver — streams RFDetection objects from a real dongle.
 Hardware: Any RTL2832U-based SDR (NooElec NESDR, RTL-SDR Blog V4, etc.)
 Frequency ranges: configured via RFSensorConfig.frequencies
 Scan cycle: round-robin over each configured frequency, sample FFT, detect peaks.
+Now with protocol-specific fingerprinting (OcuSync, ELRS, Crossfire, etc.)
 
 Usage:
     driver = RTLSDRListener(node_id="node-01", cfg=rf_cfg)
@@ -79,49 +80,20 @@ def _power_to_range_m(
 
 
 # ---------------------------------------------------------------------------
-# Drone-type fingerprinting via burst interval + frequency
-# ---------------------------------------------------------------------------
-
-# Known burst intervals (seconds) for each drone model
-_BURST_INTERVAL_MAP: dict[str, tuple[float, DroneType]] = {
-    # (expected burst interval, drone type)
-    "dji_ocusync": (0.020, DroneType.DJI_MAVIC),
-    "dji_mini": (0.020, DroneType.DJI_MINI),
-    "autel": (0.033, DroneType.AUTEL_EVO),
-    "fpv_generic": (0.008, DroneType.FPV_GENERIC),
-}
-
-_FREQ_BANDS: dict[str, list[tuple[int, int]]] = {
-    # band name → list of (low_hz, high_hz) pairs
-    "2.4GHz": [(2_400_000_000, 2_480_000_000)],
-    "5.8GHz": [(5_725_000_000, 5_875_000_000)],
-    "900MHz": [(902_000_000, 928_000_000)],
-}
-
-
-def _classify_frequency(freq_hz: int) -> str:
-    for band_name, ranges in _FREQ_BANDS.items():
-        for lo, hi in ranges:
-            if lo <= freq_hz <= hi:
-                return band_name
-    return "unknown"
-
-
-# ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
 
 
 class RTLSDRListener(PerceptionDriver):
     """
-    Real-hardware RTL-SDR continuous scan driver.
+    Real-hardware RTL-SDR continuous scan driver with protocol fingerprinting.
 
     Scans the configured frequency list in a round-robin loop. For each
     frequency, it captures `fft_size` IQ samples, computes the power
     spectrum, and emits an RFDetection when a peak exceeds threshold_db.
 
-    Key fix (per docs/artemis.md §2): the original stub was one-shot.
-    This implementation uses a continuous ``while True`` loop.
+    Includes advanced fingerprinting to identify specific protocols:
+    DJI OcuSync/Lightbridge, Autel, ELRS, Crossfire, ExpressLRS, Ghost, Analog FPV, WiFi, LTE.
     """
 
     def __init__(
@@ -133,6 +105,7 @@ class RTLSDRListener(PerceptionDriver):
         threshold_db: float = -50.0,
         sample_rate: int = 2_400_000,
         bearing_deg: float | None = None,
+        enable_fingerprinting: bool = True,
     ) -> None:
         super().__init__(node_id)
         self._frequencies = frequencies or [2_437_000_000, 5_780_000_000, 915_000_000]
@@ -140,8 +113,20 @@ class RTLSDRListener(PerceptionDriver):
         self._threshold_db = threshold_db
         self._sample_rate = sample_rate
         self._bearing_deg = bearing_deg  # fixed mount bearing (None if omni)
+        self._enable_fingerprinting = enable_fingerprinting
         self._sdr: Optional["RtlSdr"] = None  # type: ignore[name-defined]
-        # Per-frequency last-detection timestamp for burst interval fingerprinting
+
+        # Fingerprinting components
+        self._fingerprinter = None
+        if enable_fingerprinting:
+            try:
+                from artemis.perception.rf.fingerprinter import RFFingerprinter
+                self._fingerprinter = RFFingerprinter(sample_rate=sample_rate)
+                log.info("RF Fingerprinter enabled for protocol detection")
+            except ImportError:
+                log.warning("RF Fingerprinter module not available, using fallback")
+
+        # Per-frequency last-detection timestamp for burst interval tracking
         self._last_detect_ts: dict[int, float] = {}
 
     async def start(self) -> None:
@@ -173,9 +158,10 @@ class RTLSDRListener(PerceptionDriver):
         self._sdr = await asyncio.to_thread(self._open_sdr)
         self.status = DriverStatus.RUNNING
         log.info(
-            "RTLSDRListener running node=%s freqs=%s",
+            "RTLSDRListener running node=%s freqs=%s fingerprinting=%s",
             self.node_id,
             [f // 1_000_000 for f in self._frequencies],
+            self._enable_fingerprinting,
         )
 
         try:
@@ -214,12 +200,14 @@ class RTLSDRListener(PerceptionDriver):
         assert self._sdr is not None  # noqa: S101
         try:
             self._sdr.center_freq = freq_hz
-            samples = self._sdr.read_samples(self._fft_size)
+            # Read more samples for fingerprinting (need enough for spectral analysis)
+            fp_samples = max(self._fft_size, 8192) if self._fingerprinter else self._fft_size
+            samples = self._sdr.read_samples(fp_samples)
         except Exception as exc:  # noqa: BLE001
             log.warning("SDR read error at %d MHz: %s", freq_hz // 1_000_000, exc)
             return None
 
-        # Compute power spectrum (dBm referenced to 1 mW at 50 Ω)
+        # Compute power spectrum for detection
         window = np.hanning(len(samples))
         fft_mag = np.abs(np.fft.fft(samples * window))
         # Avoid log(0) — guard with max(x, 1e-30)
@@ -229,9 +217,8 @@ class RTLSDRListener(PerceptionDriver):
         if peak_db < self._threshold_db:
             return None
 
-        # Drone-type fingerprinting via burst interval timing
         now = time.time()
-        drone_type, confidence = self._fingerprint(freq_hz, peak_db, now)
+        drone_type, confidence = self._fingerprint(samples, freq_hz, peak_db, now)
         self._last_detect_ts[freq_hz] = now
 
         return RFDetection(
@@ -247,15 +234,38 @@ class RTLSDRListener(PerceptionDriver):
 
     def _fingerprint(
         self,
+        iq_samples: np.ndarray,
         freq_hz: int,
         peak_db: float,
         now: float,
     ) -> tuple[DroneType, float]:
         """
-        Heuristic drone classification based on frequency band + burst interval.
+        Fingerprint the signal to identify protocol and drone type.
+        Uses advanced fingerprinter if available, falls back to heuristic.
+        """
+        # Use advanced fingerprinter if available
+        if self._fingerprinter is not None:
+            from artemis.perception.rf.fingerprinter import FingerprintResult
+            result: FingerprintResult = self._fingerprinter.fingerprint(
+                iq_samples, freq_hz, peak_db
+            )
+            if result.protocol.value != "unknown":
+                return result.drone_type, result.confidence
+
+        # Fallback: original heuristic based on frequency band + burst interval
+        return self._legacy_fingerprint(freq_hz, peak_db, now)
+
+    def _legacy_fingerprint(
+        self,
+        freq_hz: int,
+        peak_db: float,
+        now: float,
+    ) -> tuple[DroneType, float]:
+        """
+        Legacy heuristic drone classification based on frequency band + burst interval.
         Returns (DroneType, confidence 0–1).
         """
-        band = _classify_frequency(freq_hz)
+        band = self._classify_frequency(freq_hz)
         last_ts = self._last_detect_ts.get(freq_hz, 0.0)
         interval = now - last_ts if last_ts > 0 else -1.0
 
@@ -280,3 +290,13 @@ class RTLSDRListener(PerceptionDriver):
             return DroneType.FPV_GENERIC, 0.60
 
         return DroneType.UNKNOWN, 0.20
+
+    @staticmethod
+    def _classify_frequency(freq_hz: int) -> str:
+        if 860_000_000 <= freq_hz <= 930_000_000:
+            return "900MHz"
+        if 2_400_000_000 <= freq_hz <= 2_485_000_000:
+            return "2.4GHz"
+        if 5_725_000_000 <= freq_hz <= 5_875_000_000:
+            return "5.8GHz"
+        return "unknown"

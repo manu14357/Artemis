@@ -38,12 +38,17 @@ sensors:
 
   optical:
     enabled: true
+    # Choose detector: "classical" (MOG2+LK) or "yolo" (YOLOv8-nano)
+    detector: "classical"
     resolution: [640, 480]
     fps: 30
-    # Background subtractor learning rate (lower = slower adaptation to scene changes)
+    # Classical detector params
     mog2_learning_rate: 0.005
-    # Minimum blob area in pixels to consider as a detection candidate
     min_blob_area: 80
+    # YOLO detector params
+    yolo_model_path: "models/yolov8n_drone"
+    yolo_confidence_threshold: 0.4
+    yolo_backend: "auto"  # "ncnn", "onnx", "ultralytics", "auto"
 
 mqtt:
   broker: 192.168.1.100   # IP address of the hub machine

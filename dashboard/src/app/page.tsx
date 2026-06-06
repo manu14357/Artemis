@@ -23,7 +23,7 @@ import { useArtemisWS } from '../hooks/useArtemisWS';
 const ThreatMap = dynamic(() => import('../components/ThreatMap'), { ssr: false });
 
 export default function DashboardPage() {
-  const { threats, connected } = useArtemisWS();
+  const { threats, connected, threatHistory } = useArtemisWS();
   const [uptime, setUptime] = useState(0);
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function DashboardPage() {
         >
           <section>
             <SectionTitle>Detection Feed</SectionTitle>
-            <DetectionFeed threats={threats} />
+            <DetectionFeed threats={threats} threatHistory={threatHistory} />
           </section>
           <section>
             <SectionTitle>Sensor Nodes</SectionTitle>

@@ -19,15 +19,24 @@ const BACKOFF_BASE_MS    = 100;
 const BACKOFF_MAX_MS     = 30_000;
 const MAX_RETRIES        = 10;
 const HEARTBEAT_INTERVAL = 15_000;   // ms
+/** Max historical snapshots kept in memory (~1 h at 1 update/s). */
+const MAX_HISTORY        = 3_600;
+
+export interface ThreatSnapshot {
+  ts: number;      // Unix epoch seconds
+  threats: Threat[];
+}
 
 export function useArtemisWS(onMaxRetries?: () => void) {
   const [threats, setThreats]     = useState<Threat[]>([]);
   const [connected, setConnected] = useState(false);
-  const wsRef      = useRef<WebSocket | null>(null);
-  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activeRef  = useRef(true);
-  const attemptRef = useRef(0);
+  const wsRef         = useRef<WebSocket | null>(null);
+  const timerRef      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeRef     = useRef(true);
+  const attemptRef    = useRef(0);
+  /** Ring-buffer of past threat snapshots — mutations do NOT trigger re-renders. */
+  const threatHistory = useRef<ThreatSnapshot[]>([]);
   const onMaxRetriesRef = useRef(onMaxRetries);
   onMaxRetriesRef.current = onMaxRetries;
 
@@ -75,7 +84,14 @@ export function useArtemisWS(onMaxRetries?: () => void) {
     ws.onmessage = (evt) => {
       try {
         const data = JSON.parse(evt.data as string) as Threat[];
-        if (Array.isArray(data)) setThreats(data);
+        if (Array.isArray(data)) {
+          setThreats(data);
+          // Append to ring buffer — do NOT setState to avoid re-renders per frame
+          threatHistory.current.push({ ts: Date.now() / 1000, threats: data });
+          if (threatHistory.current.length > MAX_HISTORY) {
+            threatHistory.current.shift();
+          }
+        }
       } catch {
         // malformed frame — discard silently
       }
@@ -120,5 +136,5 @@ export function useArtemisWS(onMaxRetries?: () => void) {
     }
   }
 
-  return { threats, connected, ping, retries: attemptRef };
+  return { threats, connected, ping, retries: attemptRef, threatHistory };
 }

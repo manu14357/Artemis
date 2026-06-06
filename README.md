@@ -11,6 +11,16 @@
 
 ---
 
+## 🎬 Demo
+
+> A quick walkthrough of ARTEMIS — perception pipeline, threat detection, and dashboard visualization.
+
+🎥 **[Watch the Demo](public/Artemis-sample-demo.mp4)** *(12 MB MP4 — click to view/download)*
+
+[![ARTEMIS Demo](https://img.shields.io/badge/▶_Watch_Demo-red?style=for-the-badge&logo=mp4&logoColor=white)](public/Artemis-sample-demo.mp4)
+
+---
+
 ## What Is ARTEMIS?
 
 ARTEMIS v1 is **not** a single device — it is a distributed sensor mesh where each node contributes perception data, and a central hub fuses all signals into a unified threat picture. Every node is a Raspberry Pi 5 with four commodity sensors (~$285/node), running a 4-layer detection pipeline entirely on CPU.

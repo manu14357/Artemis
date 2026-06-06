@@ -4,7 +4,12 @@
  * Scrollable live feed of the latest threat entries, newest first.
  * Shows tier badge, drone type, sensor layer pills, confidence bar, and
  * position / time metadata.
+ *
+ * Historical replay: pass `threatHistory` ref from useArtemisWS to enable
+ * a time-slider that scrubs through the last ~1 h of snapshots.
  */
+import { useState, type MutableRefObject } from 'react';
+import type { ThreatSnapshot } from '../hooks/useArtemisWS';
 import type { SensorLayer, Threat } from '../types';
 
 const TIER_BG: Record<number, string> = {
@@ -82,24 +87,108 @@ const ALL_LAYERS: SensorLayer[] = ['rf', 'acoustic', 'radar', 'optical'];
 
 interface Props {
   threats: Threat[];
+  /** Ring-buffer ref from useArtemisWS — enables replay time-slider. */
+  threatHistory?: MutableRefObject<ThreatSnapshot[]>;
 }
 
-export default function DetectionFeed({ threats }: Props) {
-  const sorted = [...threats].sort((a, b) => b.timestamp - a.timestamp);
+export default function DetectionFeed({ threats, threatHistory }: Props) {
+  const [replayMode, setReplayMode] = useState(false);
+  const [replayPct, setReplayPct]   = useState(100); // 0 = oldest, 100 = newest
+
+  // Determine which threats to show
+  let displayThreats = threats;
+  let replayTime: number | null = null;
+  if (replayMode && threatHistory) {
+    const hist = threatHistory.current;
+    if (hist.length > 0) {
+      const idx = Math.min(
+        Math.floor((replayPct / 100) * (hist.length - 1)),
+        hist.length - 1,
+      );
+      displayThreats = hist[idx].threats;
+      replayTime = hist[idx].ts;
+    }
+  }
+
+  const sorted = [...displayThreats].sort((a, b) => b.timestamp - a.timestamp);
+
+  const hasHistory = threatHistory && threatHistory.current.length > 1;
 
   return (
+    <div style={{ background: '#0d1117', borderRadius: 8, overflow: 'hidden' }}>
+      {/* ── Replay toolbar ── */}
+      {hasHistory && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '6px 10px',
+            borderBottom: '1px solid #1e293b',
+            background: replayMode ? '#0f172a' : 'transparent',
+          }}
+        >
+          <button
+            onClick={() => { setReplayMode(false); setReplayPct(100); }}
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              padding: '2px 7px',
+              borderRadius: 4,
+              border: `1px solid ${!replayMode ? '#22c55e' : '#334155'}`,
+              background: !replayMode ? '#14532d' : 'transparent',
+              color: !replayMode ? '#86efac' : '#64748b',
+              cursor: 'pointer',
+            }}
+          >
+            ● LIVE
+          </button>
+          <button
+            onClick={() => setReplayMode(true)}
+            style={{
+              fontSize: 9,
+              fontWeight: 700,
+              padding: '2px 7px',
+              borderRadius: 4,
+              border: `1px solid ${replayMode ? '#f59e0b' : '#334155'}`,
+              background: replayMode ? '#713f12' : 'transparent',
+              color: replayMode ? '#fcd34d' : '#64748b',
+              cursor: 'pointer',
+            }}
+          >
+            ◀ REPLAY
+          </button>
+          {replayMode && (
+            <>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                value={replayPct}
+                onChange={e => setReplayPct(Number(e.target.value))}
+                style={{ flex: 1, accentColor: '#f59e0b', height: 4 }}
+              />
+              <span style={{ fontSize: 9, color: '#f59e0b', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                {replayTime
+                  ? new Date(replayTime * 1000).toLocaleTimeString([], { hour12: false })
+                  : '--:--:--'}
+              </span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── Feed items ── */}
     <div
       style={{
         overflowY: 'auto',
         maxHeight: 400,
-        background: '#0d1117',
-        borderRadius: 8,
         padding: 8,
       }}
     >
       {sorted.length === 0 && (
         <p style={{ color: '#64748b', textAlign: 'center', padding: 24 }}>
-          No active threats
+          {replayMode ? 'No threats in selected snapshot' : 'No active threats'}
         </p>
       )}
       {sorted.map((t) => (
@@ -146,6 +235,7 @@ export default function DetectionFeed({ threats }: Props) {
           <ConfidenceBar value={t.score ?? t.confidence} />
         </div>
       ))}
+    </div>
     </div>
   );
 }

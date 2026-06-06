@@ -2,6 +2,11 @@ hub:
   id: 'hub-01'
   host: '0.0.0.0'
   api_port: 8080
+  # Hub GPS coordinates (used as reference origin for triangulation)
+  location:
+    lat: 17.3850
+    lon: 78.4867
+    alt_m: 540
 
 mqtt:
   # The hub runs its own Mosquitto broker (or connects to one).
@@ -83,6 +88,31 @@ effectors:
     effector_id: 'gpio-relay-01'
     pins: [17, 27, 22, 23]          # BCM pin assignments (4 channels)
     default_duration_s: 5.0
+
+  # AudioDeterrent — directional speaker for predator calls, tones
+  # Legal in most jurisdictions for property protection
+  audio_deterrent:
+    enabled: false                  # set true to activate
+    effector_id: 'audio-deterrent-01'
+    device_index: 0                 # sounddevice output device index
+    sample_rate: 48000
+    max_duration_s: 30.0
+    default_volume_db: -6.0
+    sounds_dir: 'assets/audio_deterrent'  # WAV files: hawk_screech.wav, etc.
+
+  # VisualDeterrent — high-intensity strobe + laser dazzler
+  # Check local regulations for laser use
+  visual_deterrent:
+    enabled: false                  # set true to activate
+    effector_id: 'visual-deterrent-01'
+    strobe_pin: 22                  # BCM GPIO for strobe LED
+    laser_pin: 23                   # BCM GPIO for laser dazzler (PWM)
+    strobe_frequency_hz: 10.0
+    strobe_duty_cycle: 0.5
+    laser_pwm_frequency_hz: 1000
+    laser_max_duty_cycle: 0.5       # Safety limit (50%)
+    max_duration_s: 60.0
+    cooldown_s: 5.0
 
 # ── Engagement log ────────────────────────────────────────────────────────
 engagement_log:

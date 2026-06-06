@@ -183,6 +183,22 @@ class Threat:
 
     timestamp: float = field(default_factory=time.time)
     confidence: float = 0.0  # overall track quality score
+    # Enhanced threat scoring (from ThreatScorer)
+    score: float = 0.0  # multi-factor threat score 0-1
+
+    @property
+    def position(self) -> dict:
+        return {"x": self.x_m, "y": self.y_m, "z": self.z_m}
+
+    @property
+    def velocity(self) -> dict:
+        return {"vx": self.vx_mps, "vy": self.vy_mps, "vz": self.vz_mps}
+
+    @property
+    def impact(self) -> Optional[dict]:
+        if self.impact_x_m is not None and self.impact_y_m is not None:
+            return {"x": self.impact_x_m, "y": self.impact_y_m}
+        return None
 
     def to_dict(self) -> dict:
         return {
@@ -192,16 +208,13 @@ class Threat:
             "drone_type": self.drone_type.value,
             "position": {"x": self.x_m, "y": self.y_m, "z": self.z_m},
             "velocity": {"vx": self.vx_mps, "vy": self.vy_mps, "vz": self.vz_mps},
-            "impact": (
-                {"x": self.impact_x_m, "y": self.impact_y_m}
-                if self.impact_x_m is not None
-                else None
-            ),
+            "impact": self.impact,
             "sensor_layers": self.sensor_layers,
             "swarm_id": self.swarm_id,
             "swarm_size": self.swarm_size,
             "timestamp": self.timestamp,
             "confidence": self.confidence,
+            "score": self.score,
         }
 
 

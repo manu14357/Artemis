@@ -196,6 +196,53 @@ def create_app(
         n = max(1, min(limit, 500))
         return {"engagements": engagement_log.recent(n)}
 
+    @app.get("/analytics")
+    @limiter.limit(limit_str)
+    async def get_analytics(request: Request):
+        """
+        Return aggregated analytics for the dashboard analytics page.
+
+        Includes per-layer detection counts, engagement summary, active
+        tracks, node count, and uptime.
+        """
+        engagement_summary: dict = {"total": 0, "by_tier": {}}
+        if engagement_log is not None:
+            recent = engagement_log.recent(500)
+            engagement_summary["total"] = len(recent)
+            for eng in recent:
+                tier = (
+                    eng.get("tier", "unknown")
+                    if isinstance(eng, dict)
+                    else getattr(eng, "tier", "unknown")
+                )
+                tier_str = str(tier)
+                engagement_summary["by_tier"][tier_str] = (
+                    engagement_summary["by_tier"].get(tier_str, 0) + 1
+                )
+
+        last_fusion_age: Optional[float] = None
+        if aggregator is not None:
+            lf = getattr(aggregator, "_last_fusion_ts", None)
+            if lf is not None:
+                last_fusion_age = round(time.time() - lf, 2)
+
+        return {
+            "uptime_s": round(time.time() - _start_time, 1),
+            "active_tracks": threat_map.count if threat_map is not None else 0,
+            "node_count": len(aggregator.nodes) if aggregator is not None else 0,
+            "engagement_summary": engagement_summary,
+            "last_fusion_age_s": last_fusion_age,
+        }
+
+    @app.post("/config/reload")
+    async def reload_config(request: Request, _key: Optional[str] = Depends(require_auth)):
+        """Signal a config reload. Actual hot-reload is handled by ConfigWatcher."""
+        return {
+            "status": "ok",
+            "message": "ConfigWatcher will reload automatically on file change. "
+                       "Edit hub/config/hub_default.yaml to apply new settings.",
+        }
+
     # ------------------------------------------------------------------
     # Routes — protected write endpoint (auth required)
     # ------------------------------------------------------------------
